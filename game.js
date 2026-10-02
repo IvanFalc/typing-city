@@ -15,7 +15,7 @@ const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
 const SINGULAR = {
   'дрова': 'дрова', 'бревна': 'бревно', 'булыжники': 'булыжник', 'щебень': 'щебень',
-  'пшеница': 'пшеница', 'сено': 'сено', 'рыба': 'рыба', 'хлеб': 'хлеб', 'овощи': 'овощ',
+  'пшеница': 'пшеница', 'сено': 'сено', 'рыба': 'рыба', 'хлеб': 'хлеб', 'овощи': 'овощ', 'яблоки': 'яблоко',
 };
 const FORMS = {
   дрова: ['дрова', 'дрова', 'дров'],
@@ -23,12 +23,15 @@ const FORMS = {
   булыжники: ['булыжник', 'булыжника', 'булыжников'],
   щебень: ['щебень', 'щебня', 'щебня'],
   пшеница: ['пшеница', 'пшеницы', 'пшеницы'],
+  яблоки: ['яблоко', 'яблока', 'яблок'],
+  монеты: ['монета', 'монеты', 'монет'],
+  лента: ['лента', 'ленты', 'лент'],
 };
 const KIND_LABEL = {
   tree: 'ДЕРЕВО', stump: 'ПЕНЬ', mountain: 'ГОРА', field: 'ГРЯДКА',
   sea: 'МОРЕ', water: 'РЕКА', fished: 'ВОДА',
   bridge: 'МОСТ', road: 'ДОРОГА', house: 'ДОМ', shed: 'САРАЙ', oven: 'ПЕЧКА',
-  bed: 'ГРЯДКА', weed: 'СОРНЯК', sawmill: 'ЛЕСОПИЛКА', warehouse: 'СКЛАД',
+  bed: 'ГРЯДКА', weed: 'СОРНЯК', sawmill: 'ЛЕСОПИЛКА', warehouse: 'СКЛАД', apple: 'ЯБЛОНЯ',
 };
 
 function ru(n, one, few, many) {
@@ -53,6 +56,11 @@ const LEVELS = [
   // ===== ГЛАВА 1 «ЛЕС» =====
   {
     name: 'ЛЕСОПИЛКА', size: 5, icon: '🌳', classic: true, objectKind: 'tree', noStumps: true, par: 150,
+    tutorial: [
+      { text: 'Наведи мышку на клетку а1 и нажми левую кнопку', cell: [0, 0], check: () => selected && selected.col === 0 && selected.row === 0 },
+      { text: 'Набери на клавиатуре слово: дерево', input: true, check: () => input.value.trim().toLowerCase() === 'дерево' },
+      { text: 'Нажми Enter — дерево посадится!', input: true, check: () => !!objs['а1'] },
+    ],
     goal: [ { res: 'дрова', n: 40, gen: 'дров' }, { res: 'бревна', n: 10, gen: 'брёвен' } ],
     verbs: [
       { cmd: 'дерево', icon: '🌳', hint: 'дерево — посадить дерево (20 дров или 5 брёвен)', match: o => !o, run: 'build', kind: 'tree', stock: 20 },
@@ -64,6 +72,12 @@ const LEVELS = [
   },
   {
     name: 'ПРОСЕКА', size: 5, icon: '🪵', classic: true, objectKind: 'tree', noStumps: true, noClick: true, par: 180,
+    tutorial: [
+      { text: 'Мышка здесь отдыхает! Печатай адрес клетки: а1', input: true, check: () => input.value.trim().toLowerCase() === 'а1' },
+      { text: 'Здорово! Допиши команду через пробел: а1 дерево', input: true, check: () => input.value.trim().toLowerCase() === 'а1 дерево' },
+      { text: 'Нажми Enter', input: true, check: () => !!objs['а1'] },
+      { text: 'Теперь сам: посади второе дерево — напечатай: а2 дерево', input: true, check: () => !!objs['а2'] },
+    ],
     goal: [ { res: 'дрова', n: 20, gen: 'дров' }, { res: 'бревна', n: 5, gen: 'брёвен' } ],
     verbs: [
       { cmd: 'дерево', icon: '🌳', hint: 'дерево — посадить дерево', match: o => !o, run: 'build', kind: 'tree', stock: 20 },
@@ -88,14 +102,11 @@ const LEVELS = [
     ],
   },
   {
-    name: 'ПЕРЕНОСКА', size: 7, icon: '🧺', classic: true, objectKind: 'tree', noStumps: true, pile: true, par: 200,
-    goal: [ { res: 'дрова', n: 20, gen: 'дров' }, { res: 'бревна', n: 5, gen: 'брёвен' } ],
+    name: 'САД', size: 7, icon: '🍎', par: 120,
+    goal: [ { res: 'яблоки', n: 16, gen: 'яблок', label: 'яблоки' } ],
     verbs: [
-      { cmd: 'дерево', icon: '🌳', hint: 'дерево — посадить дерево', match: o => !o, run: 'build', kind: 'tree', stock: 20 },
-      { cmd: 'рубить дрова', icon: '🪓', hint: 'рубить дрова — топором (упадёт в кучу)', match: o => o && o.kind === 'tree' && !o.burning, run: 'work', worker: 'axe', time: 0.8, cost: 1, gain: 1, res: 'дрова' },
-      { cmd: 'пилить бревна', icon: '🪚', hint: 'пилить бревна — пилой (упадёт в кучу)', match: o => o && o.kind === 'tree' && !o.burning, run: 'work', worker: 'saw', time: 2.0, cost: 4, gain: 1, res: 'бревна' },
-      { cmd: 'взять', icon: '🧺', hint: 'взять — забрать кучу с клетки', match: o => o && o.pileN, run: 'take' },
-      { cmd: 'корчевать', icon: '🪓', hint: 'корчевать — убрать пень', match: o => o && o.kind === 'stump', run: 'clear' },
+      { cmd: 'яблоня', icon: '🌳', hint: 'посадить яблоню — 8 яблок с дерева', match: o => !o, run: 'build', kind: 'apple', stock: 8, emoji: '🌳' },
+      { cmd: 'трясти яблоню', icon: '🍎', hint: 'собрать яблоки с яблони', match: o => o && o.kind === 'apple' && !o.burning, run: 'work', worker: 'basket', time: 1, cost: 1, gain: 1, res: 'яблоки' },
     ],
   },
   {
@@ -103,13 +114,13 @@ const LEVELS = [
     goal: [ { res: 'пшеница', n: 24, gen: 'пшеницы', label: 'пшеница' }, { res: 'сено', n: 8, gen: 'сена', label: 'сено' } ],
     verbs: [
       { cmd: 'поле', icon: '🌾', hint: 'поле — посадить грядку (12 пшеницы или 4 сена)', match: o => !o, run: 'build', kind: 'field', stock: 12 },
-      { cmd: 'жать', icon: '🌾', hint: 'жать — серпом: 12 пшеницы', match: o => o && o.kind === 'field' && fieldStage(o) === 'ripe', run: 'work', worker: 'sickle', time: 0.8, cost: 1, gain: 1, res: 'пшеница' },
-      { cmd: 'косить', icon: '🌿', hint: 'косить — косой: 4 сена', match: o => o && o.kind === 'field' && fieldStage(o) === 'ripe', run: 'work', worker: 'scythe', time: 1.5, cost: 3, gain: 1, res: 'сено' },
+      { cmd: 'жать пшеницу', icon: '🌾', hint: 'серпом с грядки — 12 пшеницы', match: o => o && o.kind === 'field' && fieldStage(o) === 'ripe', run: 'work', worker: 'sickle', time: 0.8, cost: 1, gain: 1, res: 'пшеница' },
+      { cmd: 'косить сено', icon: '🌿', hint: 'косой с грядки — 4 сена', match: o => o && o.kind === 'field' && fieldStage(o) === 'ripe', run: 'work', worker: 'scythe', time: 1.5, cost: 3, gain: 1, res: 'сено' },
       { cmd: 'убрать', icon: '🧹', hint: 'убрать — убрать сухую грядку', match: o => o && o.kind === 'field' && fieldStage(o) === 'dry', run: 'clear' },
     ],
   },
   {
-    name: 'ЯРМАРКА', size: 7, icon: '🎪', par: 120,
+    name: 'ЯРМАРКА', size: 7, icon: '🎪', par: 120, requireAll: true,
     start: { 'яблоки': 14, 'сено': 10 },
     wallet: ['яблоки', 'сено', 'монеты', 'лента'],
     goal: [ { res: 'монеты', n: 14, gen: 'монет', label: 'монета' }, { res: 'лента', n: 2, gen: 'лент', label: 'лента' } ],
@@ -406,17 +417,15 @@ const SOLUTIONS = [
     { cell: 'в3', cmd: 'колоть булыжник' }, { cell: 'е2', cmd: 'колоть булыжник' }, { cell: 'ж6', cmd: 'дробить щебень' },
     { waitWork: true },
   ],
-  [ // 4: куча на клетке — забрать «взять»
-    { cell: 'а1', cmd: 'дерево' }, { cell: 'а2', cmd: 'дерево' },
-    { cell: 'а1', cmd: 'рубить дрова' }, { cell: 'а2', cmd: 'пилить бревна' },
-    { waitWork: true },
-    { cell: 'а1', cmd: 'взять' }, { cell: 'а2', cmd: 'взять' },
-    { cell: 'а1', cmd: 'корчевать' }, { cell: 'а2', cmd: 'корчевать' },
+  [ // 4: две яблони, собрать по 8 яблок
+    { cell: 'а1', cmd: 'яблоня' }, { cell: 'а2', cmd: 'яблоня' },
+    { cell: 'а1', cmd: 'трясти яблоню' }, { waitWork: true },
+    { cell: 'а2', cmd: 'трясти яблоню' }, { waitWork: true },
   ],
   [ // 5: четыре грядки; после роста — две под серп, две под косу
     { cell: 'а1', cmd: 'поле' }, { cell: 'а2', cmd: 'поле' }, { cell: 'а3', cmd: 'поле' }, { cell: 'а4', cmd: 'поле' },
     { wait: 5.4 },
-    { cell: 'а1', cmd: 'жать' }, { cell: 'а2', cmd: 'жать' }, { cell: 'а3', cmd: 'косить' }, { cell: 'а4', cmd: 'косить' },
+    { cell: 'а1', cmd: 'жать пшеницу' }, { cell: 'а2', cmd: 'жать пшеницу' }, { cell: 'а3', cmd: 'косить сено' }, { cell: 'а4', cmd: 'косить сено' },
     { waitWork: true },
   ],
   [ // 6: ярмарка — продать с числом и без
@@ -549,12 +558,94 @@ let levelIdx = 0, LVL = LEVELS[0];
 let N = 5, CELL = 120, SF = 6, GS = 600, GRID_OX = 64, GRID_OY = 106, labelFont = 41;
 
 function applyLevel(i) {
-  levelIdx = i; LVL = LEVELS[i]; N = LVL.size;
+  levelIdx = i;
+  const base = LEVELS[i];
+  LVL = Object.assign({}, base);
+  // Скиллы: команды пройденных уровней остаются у игрока навсегда —
+  // «открыл сажать деревья» значит можно сажать везде дальше.
+  const extra = [];
+  for (const m in SAVE.done) {
+    const src = LEVELS[m];
+    if (!src || +m === i) continue;
+    for (const v of (src.verbs || [])) {
+      if (!['build', 'work', 'clear', 'burn'].includes(v.run)) continue;
+      if ((base.verbs || []).some(w => w.cmd === v.cmd)) continue;
+      if (extra.some(w => w.cmd === v.cmd)) continue;
+      extra.push(Object.assign({}, v, { skill: true }));
+    }
+  }
+  LVL.verbs = (base.verbs || []).concat(extra);
+  N = LVL.size;
   CELL = Math.max(12, Math.floor(662 / (N + 0.51)));
   labelFont = Math.max(11, Math.round(CELL * 0.34));
   SF = CELL / 20; GS = CELL * N;
   GRID_OX = 34 + Math.floor((660 - GS) / 2);
   GRID_OY = 44 + Math.round(labelFont * 1.5);
+}
+
+// ---------- туториал ----------
+let tut = null, tutIdx = 0;
+function tutStart() {
+  tut = null; tutIdx = 0;
+  if (LVL.tutorial && !(SAVE.tutDone || {})[levelIdx]) tut = LVL.tutorial;
+}
+function tutRect(step) {
+  if (step.input) return { x: 730, y: 616, w: 496, h: 54 };
+  if (step.cell) return { x: cellX(step.cell[0]), y: cellY(step.cell[1]), w: CELL, h: CELL };
+  return { x: 590, y: 340, w: 100, h: 100 };
+}
+function tutTick() {
+  if (!tut) return;
+  const step = tut[tutIdx];
+  if (step && step.check()) {
+    tutIdx++;
+    beep(700, 0.1, 'triangle', 0.1);
+    if (tutIdx >= tut.length) {
+      tut = null;
+      SAVE.tutDone = SAVE.tutDone || {};
+      SAVE.tutDone[levelIdx] = true;
+      persistSave();
+      log('🎉 Ты справился! Дальше — сам, журнал подскажет', 'ok');
+    }
+  }
+}
+function tutSkip() {
+  if (!tut) return false;
+  tut = null;
+  SAVE.tutDone = SAVE.tutDone || {};
+  SAVE.tutDone[levelIdx] = true;
+  persistSave();
+  log('Обучение пропущено', 'info');
+  return true;
+}
+function drawTutorial() {
+  if (!tut) return;
+  const step = tut[tutIdx];
+  if (!step) return;
+  const r = tutRect(step);
+  // затемняем всё, кроме области шага
+  ctx.fillStyle = 'rgba(4,12,8,0.62)';
+  ctx.fillRect(0, 0, W, r.y);
+  ctx.fillRect(0, r.y + r.h, W, H - r.y - r.h);
+  ctx.fillRect(0, r.y, r.x, r.h);
+  ctx.fillRect(r.x + r.w, r.y, W - r.x - r.w, r.h);
+  // пульсирующая рамка области
+  ctx.strokeStyle = 'rgba(255,224,102,' + (0.6 + 0.4 * Math.sin(now * 5)) + ')';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(r.x - 4, r.y - 4, r.w + 8, r.h + 8);
+  // пузырь с заданием
+  ctx.font = 'bold 21px Segoe UI';
+  const tw = ctx.measureText(step.text).width;
+  const bw = tw + 36, bh = 56;
+  let bx = Math.min(W - bw - 16, Math.max(16, r.x + r.w / 2 - bw / 2));
+  let by = r.y - bh - 26 < 10 ? r.y + r.h + 22 : r.y - bh - 22;
+  ctx.fillStyle = '#ffe066'; rr(bx, by, bw, bh, 14);
+  ctx.fillStyle = '#17382a'; ctx.textAlign = 'center';
+  ctx.fillText(step.text, bx + bw / 2, by + 35);
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#9dbfa5'; ctx.font = '14px Segoe UI'; ctx.textAlign = 'center';
+  ctx.fillText('Esc — пропустить обучение', W / 2, H - 12);
+  ctx.textAlign = 'left';
 }
 
 // ---------- звук ----------
@@ -739,15 +830,25 @@ function addRes(res, n) {
   return take;
 }
 // победа: звёзды, сейв, телеметрия — единая точка
+// Критерии: 1 — прохождение; 2 — точность≥85; 3 — точность≥95;
+// 4 — без подсказки-клавиатуры; 5 — поймано пузырей (1/2/3 по третям игры).
+const bubblesNeed = () => (levelIdx < 10 ? 1 : levelIdx < 20 ? 2 : 3);
+function starForecast() {
+  const acc = accPct();
+  return [
+    true,
+    acc >= 85,
+    acc >= 95,
+    hintUses === 0,
+    poppedBubbles >= bubblesNeed(),
+  ];
+}
+let poppedBubbles = 0;
 function winLevel() {
   state = 'win'; winTime = (performance.now() - stats.startT) / 1000;
   sndWin();
   const acc = accPct();
-  let stars = 1;
-  if (acc >= 85) stars++;
-  if (acc >= 95) stars++;
-  if (LVL.par && winTime <= LVL.par) stars++;
-  if (hintUses === 0) stars++;
+  const stars = starForecast().filter(Boolean).length;
   const wasDone = Object.assign({}, SAVE.done);
   const prev = SAVE.stars[levelIdx] || 0;
   if (stars > prev) SAVE.stars[levelIdx] = stars;
@@ -901,7 +1002,9 @@ function reset() {
   selected = null; selected2 = null; kbTarget = null;
   orderIdx = 0; weedAcc = 0; playT = 0; stumpTold = false;
   streak = 0; hintUses = 0; bubbles = []; bubAcc = 0; wordIdx = 0;
-  lockedPick = -1;
+  lockedPick = -1; poppedBubbles = 0;
+  tutStart(); poppedBubbles = 0;
+  tutStart();
   TELEM.chars = 0; TELEM.keyErrors = {};
   telem('level_start', { level: levelIdx + 1, name: LVL.name });
   layLevel();
@@ -933,7 +1036,7 @@ function cellState(c, r) {
 function commandsFor(st) {
   if (st.type === 'busy' || st.type === 'burning') return [];
   const o = objs[st.key];
-  return LVL.verbs.filter(v => v.run !== 'mail' && v.match(o, st)).map(v => v.cmd);
+  return LVL.verbs.filter(v => !v.skill && v.run !== 'mail' && v.match(o, st)).map(v => v.cmd);
 }
 function workerName(mode) {
   return {
@@ -974,7 +1077,7 @@ function whyNot(word, st, o) {
     const s = fieldStage(o);
     if (s === 'grow') return 'Грядка ' + st.key + ' ещё растёт — подожди';
     if (s === 'dry') return 'Грядка ' + st.key + ' сухая — команда убрать';
-    return 'Грядка ' + st.key + ' спелая — жать или косить';
+    return 'Грядка ' + st.key + ' спелая — жать пшеницу или косить сено';
   }
   if (o && o.kind === 'stump') return 'Здесь пень — команда корчевать';
   if (o && o.kind === 'sea') {
@@ -1297,6 +1400,8 @@ function runWordOrder(addr) {
 function popBubble(i) {
   const b = bubbles[i];
   bubbles.splice(i, 1);
+  poppedBubbles++;
+  poppedBubbles++;
   for (let j = 0; j < 14; j++) particles.push({
     x: b.x, y: b.y, vx: (Math.random() - .5) * 200, vy: -Math.random() * 200,
     life: 0.7, col: ['#80d8ff', '#b39ddb', '#ffe066'][j % 3], size: 5,
@@ -1587,7 +1692,7 @@ function drawSettings() {
   ctx.textAlign = 'left';
 }
 function nextLevel() {
-  state = 'menu'; // после победы — на карту: видно, что открылось дальше
+  state = 'menu'; mapCenterOn(mapFrontier()); // карта: видно, что открылось дальше
 }
 function failInput(msg) {
   lastSubmit = { ok: false, msg: msg };
@@ -1686,6 +1791,9 @@ function update(dt) {
             o.kind = 'stump'; o.stock = 0; o.max = 0; o.held = false;
             stats.stumpsMade++;
             log('🪵 Пень остался: ' + w.key + ' — корчевать');
+          } else if (o.kind === 'apple') {
+            delete objs[w.key];
+            log('🍎 Яблоня ' + w.key + ' собрана до последнего яблока');
           } else if (o.kind === 'sea') {
             o.stock = 0; o.max = 0;
             log('✅ Море ' + w.key + ' выловлено: ' + w.act.res + ' ' + have);
@@ -1889,6 +1997,13 @@ function drawObject(o) {
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(o.emoji, cellX(o.col) + CELL / 2, cellY(o.row) + CELL / 2);
     ctx.textBaseline = 'alphabetic';
+    if (o.max) { // полоска запаса (яблони, клетки и т.п.)
+      const frac = Math.max(0, Math.min(1, o.stock / o.max));
+      const bw = CELL * 0.6;
+      ctx.fillStyle = '#37474f'; ctx.fillRect(cellX(o.col) + CELL * 0.2, cellY(o.row) + CELL - 8, bw, 4);
+      ctx.fillStyle = frac > 0.3 ? '#8bc34a' : '#ffb300';
+      ctx.fillRect(cellX(o.col) + CELL * 0.2, cellY(o.row) + CELL - 8, bw * frac, 4);
+    }
     if (o.pileN) drawPileBadge(o);
     return;
   }
@@ -2176,11 +2291,34 @@ const parentNames = i => (LEVEL_TREE[i] || []).map(p => LEVELS[p].name).join(' �
 
 let menuBtns = {}, mapNodes = [], hoverNodeIdx = -1, lockedPick = -1, newlyUnlocked = [];
 
-// змейка: 6 точек в ряд, ряды чередуют направление
-function mapPos(i) {
-  const row = Math.floor(i / 6), pos = i % 6;
-  const col = row % 2 === 0 ? pos : 5 - pos;
-  return { x: 150 + col * 196, y: 186 + row * 96 };
+// Вертикальная карта-дерево: развилки расходятся в стороны, глубина вниз.
+// Координаты [x, y]; скролл колесом мыши или перетаскиванием.
+const MAP_POS = [
+  [700, 90], [700, 200], [700, 310],           // 1–3
+  [450, 430], [950, 430],                       // 4 САД ← | → 5 Ферма
+  [700, 550], [700, 660],                       // 6 Ярмарка, 7 Река
+  [450, 780], [950, 780], [950, 890], [200, 780], // 8 Рыбак, 9 Дороги, 10 Развилка, 11 Мосты
+  [700, 1000],                                  // 12 Почта
+  [450, 1120], [950, 1120], [450, 1230], [950, 1230], // 13–16
+  [700, 1350], [700, 1460], [700, 1570],        // 17–19
+  [450, 1690], [700, 1690], [950, 1690],        // 20–22 (тройная развилка)
+  [450, 1810], [950, 1810],                     // 23–24
+  [450, 1920], [950, 1920],                     // 25–26
+  [700, 2040], [1150, 2040],                    // 27–28
+  [700, 2160], [700, 2270],                     // 29–30
+];
+const MAP_BOTTOM = 2270;
+const MAP_VIEW_H = 560; // видимая высота области карты
+let mapScrollY = 0, mapDrag = null;
+const MAP_MAX_SCROLL = Math.max(0, MAP_BOTTOM + 130 - MAP_VIEW_H);
+const mapPos = i => ({ x: MAP_POS[i][0], y: MAP_POS[i][1] - mapScrollY });
+function mapCenterOn(i) {
+  mapScrollY = Math.max(0, Math.min(MAP_MAX_SCROLL, MAP_POS[i][1] - MAP_VIEW_H / 2));
+}
+function mapFrontier() {
+  for (let i = 0; i < LEVELS.length; i++) if (levelUnlocked(i) && !SAVE.done[i]) return i;
+  for (let i = LEVELS.length - 1; i >= 0; i--) if (SAVE.done[i]) return i;
+  return 0;
 }
 
 function drawMenu() {
@@ -2198,7 +2336,7 @@ function drawMenu() {
   const tgt = hoverNodeIdx >= 0 ? hoverNodeIdx : lockedPick;
   ctx.fillStyle = '#0e2418'; rr(30, 62, 1220, 66, 12);
   ctx.textAlign = 'left';
-  if (tgt >= 0) {
+  if (tgt >= 0 && (levelUnlocked(tgt) || SAVE.done[tgt] || DEV())) {
     const L = LEVELS[tgt];
     ctx.font = '26px Segoe UI'; ctx.fillText(L.icon, 46, 106);
     ctx.fillStyle = th.acc; ctx.font = 'bold 19px Segoe UI';
@@ -2207,14 +2345,20 @@ function drawMenu() {
     if (SAVE.done[tgt]) {
       const b = SAVE.best[tgt] || {};
       ctx.fillStyle = '#a5d6a7';
-      ctx.fillText('✓ пройден · ★' + (SAVE.stars[tgt] || 0) + '/5 · лучший: точность ' + (b.acc !== undefined ? b.acc + '%' : '—') + ', время ' + (b.time !== undefined ? b.time + ' с' : '—'), 88, 116);
+      ctx.fillText('✓ пройден · ★' + (SAVE.stars[tgt] || 0) + '/5 · лучший: точность ' + (b.acc !== undefined ? b.acc + '%' : '—'), 88, 116);
     } else if (levelUnlocked(tgt)) {
       ctx.fillStyle = '#ffe066';
       ctx.fillText('▶ доступен · цель: ' + goalsOf(L), 88, 116);
     } else {
       ctx.fillStyle = '#ff8a80';
-      ctx.fillText(DEV() ? '🛠 открыт для тестирования (DEV)' : '🔒 закрыт — сначала пройди: ' + parentNames(tgt), 88, 116);
+      ctx.fillText('🛠 открыт для тестирования (DEV)', 88, 116);
     }
+  } else if (tgt >= 0) {
+    ctx.font = '26px Segoe UI'; ctx.fillText('🔒', 46, 106);
+    ctx.fillStyle = '#9dbfa5'; ctx.font = 'bold 19px Segoe UI';
+    ctx.fillText('Уровень ' + (tgt + 1) + ' — ещё закрыт', 88, 90);
+    ctx.font = '15px Segoe UI'; ctx.fillStyle = '#7ba287';
+    ctx.fillText('Открой его, пройдя предыдущие уровни — и узнаешь, что там!', 88, 116);
   } else {
     ctx.fillStyle = '#b9e4bd'; ctx.font = 'bold 18px Segoe UI';
     ctx.fillText('Пройдено ' + Object.keys(SAVE.done).length + ' из ' + LEVELS.length + ' · ⭐ ' + starsBalance(), 46, 88);
@@ -2246,16 +2390,17 @@ function drawMenu() {
   mapNodes = [];
   for (let i = 0; i < LEVELS.length; i++) {
     const { x, y } = mapPos(i);
+    if (y < -70 || y > MAP_VIEW_H + 130) continue; // за пределами вида
     const R = 36;
     mapNodes.push({ x, y, r: R, idx: i });
     const un = levelUnlocked(i), dn = !!SAVE.done[i];
     const hl = hoverNodeIdx === i || lockedPick === i;
     ctx.beginPath(); ctx.arc(x, y, R, 0, 7);
-    ctx.fillStyle = dn ? '#1f4a33' : un ? '#245c3d' : '#122719'; ctx.fill();
+    ctx.fillStyle = dn ? '#1f4a33' : un ? '#245c3d' : '#0f1f15'; ctx.fill();
     ctx.lineWidth = 3;
     if (dn) ctx.strokeStyle = '#7ee787';
     else if (un) ctx.strokeStyle = 'rgba(255,224,102,' + (0.55 + 0.45 * Math.sin(now * 4)) + ')';
-    else { ctx.strokeStyle = '#2a4a38'; ctx.lineWidth = 2; }
+    else { ctx.strokeStyle = '#233c2e'; ctx.lineWidth = 2; }
     ctx.stroke();
     if (un && !dn) { // пульс доступности
       ctx.beginPath(); ctx.arc(x, y, R + 5 + Math.sin(now * 4) * 2, 0, 7);
@@ -2268,32 +2413,51 @@ function drawMenu() {
       ctx.fillText('НОВОЕ!', x, y - R - 24);
     }
     if (hl) { ctx.beginPath(); ctx.arc(x, y, R + 3, 0, 7); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); }
-    // иконка
-    ctx.globalAlpha = dn || un ? 1 : 0.3;
-    ctx.font = '32px Segoe UI'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(LEVELS[i].icon, x, y + 1);
-    ctx.globalAlpha = 1; ctx.textBaseline = 'alphabetic';
+    // иконка (у закрытых — «?»: суть уровня скрыта до открытия)
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    if (un || dn) {
+      ctx.globalAlpha = dn ? 1 : 1;
+      ctx.font = '32px Segoe UI';
+      ctx.fillText(LEVELS[i].icon, x, y + 1);
+    } else {
+      ctx.font = 'bold 34px Segoe UI'; ctx.fillStyle = '#3d5c4a';
+      ctx.fillText('?', x, y + 1);
+    }
+    ctx.textBaseline = 'alphabetic'; ctx.globalAlpha = 1;
     // номер
     ctx.beginPath(); ctx.arc(x - R + 6, y - R + 6, 11, 0, 7);
     ctx.fillStyle = dn ? '#2e6c46' : '#17382a'; ctx.fill();
-    ctx.fillStyle = dn ? '#eaffea' : '#9dbfa5'; ctx.font = 'bold 12px Segoe UI';
+    ctx.fillStyle = dn ? '#eaffea' : '#9dbfa5'; ctx.font = 'bold 12px Segoe UI'; ctx.textAlign = 'center';
     ctx.fillText(i + 1, x - R + 6, y - R + 11);
+    // имя рядом (только у открытых)
+    if (un || dn) {
+      ctx.fillStyle = dn ? '#a5d6a7' : '#eaffea'; ctx.font = 'bold 14px Segoe UI'; ctx.textAlign = 'left';
+      ctx.fillText(LEVELS[i].name, x + R + 10, y - 2);
+    }
     // статус под точкой
     if (dn) {
       const st = SAVE.stars[i] || 0;
-      ctx.fillStyle = '#ffe066'; ctx.font = '13px Segoe UI';
+      ctx.fillStyle = '#ffe066'; ctx.font = '13px Segoe UI'; ctx.textAlign = 'center';
       ctx.fillText('★'.repeat(st) + '☆'.repeat(5 - st), x, y + R + 18);
       ctx.beginPath(); ctx.arc(x + R - 6, y - R + 6, 10, 0, 7);
       ctx.fillStyle = '#7ee787'; ctx.fill();
       ctx.fillStyle = '#0e2418'; ctx.font = 'bold 13px Segoe UI';
       ctx.fillText('✓', x + R - 6, y - R + 11);
     } else if (un) {
-      ctx.fillStyle = '#ffe066'; ctx.font = '13px Segoe UI';
+      ctx.fillStyle = '#ffe066'; ctx.font = '13px Segoe UI'; ctx.textAlign = 'center';
       ctx.fillText('☆☆☆☆☆', x, y + R + 18);
     } else {
-      ctx.font = '15px Segoe UI';
+      ctx.font = '15px Segoe UI'; ctx.textAlign = 'center';
       ctx.fillText('🔒', x, y + R + 17);
     }
+    ctx.textAlign = 'left';
+  }
+  // индикатор прокрутки
+  if (MAP_MAX_SCROLL > 0) {
+    ctx.fillStyle = '#0e2418'; rr(1258, 140, 8, MAP_VIEW_H - 40, 4);
+    const th2 = Math.max(30, (MAP_VIEW_H - 40) * MAP_VIEW_H / (MAP_BOTTOM + 130));
+    const ty = 140 + (MAP_VIEW_H - 40 - th2) * (mapScrollY / MAP_MAX_SCROLL);
+    ctx.fillStyle = '#3d8a5f'; rr(1258, ty, 8, th2, 4);
   }
 
   // кнопки экранов
@@ -2358,6 +2522,26 @@ function drawPanel() {
     ctx.textAlign = 'left';
   }
 
+  // ---- живой статус звёзд: видно, что ещё выполнимо и почему ----
+  const afterGoals = goalTop + (LVL.goal.length + (LVL.noStumps ? 1 : 0)) * goalStride;
+  const crit = starForecast();
+  const acc = accPct();
+  const needB = bubblesNeed();
+  const starLine1 = crit.map(ok => (ok ? '★' : '☆')).join('');
+  ctx.fillStyle = '#ffe066'; ctx.font = 'bold 18px Segoe UI';
+  ctx.fillText(starLine1, px, afterGoals + 20);
+  ctx.fillStyle = '#9dbfa5'; ctx.font = 'bold 12px Segoe UI';
+  ctx.fillText('ЗВЁЗДЫ', px + 118, afterGoals + 19);
+  // пояснения: что не хватает для 5★
+  const bits = [];
+  bits.push((crit[1] ? '✓' : '✗') + ' точность ' + acc + '% (85)');
+  bits.push((crit[2] ? '✓' : '✗') + ' точность ' + acc + '% (95)');
+  bits.push((crit[3] ? '✓' : '✗') + ' подсказки ' + hintUses);
+  bits.push((crit[4] ? '✓' : '✗') + ' пузыри ' + poppedBubbles + '/' + needB);
+  ctx.fillStyle = crit.every(Boolean) ? '#7ee787' : '#b9e4bd'; ctx.font = '13px Segoe UI';
+  ctx.fillText(bits.join(' · '), px, afterGoals + 40);
+  const cmdTop = afterGoals + 56;
+
   let title, list = [];
   const order = LVL.orders && orderIdx < LVL.orders.length ? LVL.orders[orderIdx] : null;
   const word = currentWord();
@@ -2383,10 +2567,10 @@ function drawPanel() {
     title = 'ОТРЕЗОК ' + cellName(selected.col, selected.row) + ' → ' + cellName(selected2.col, selected2.row);
   }
   ctx.fillStyle = '#9dbfa5'; ctx.font = 'bold 15px Segoe UI';
-  ctx.fillText(title + (selected && list.length && !order ? ' (клик — клавиатура)' : ''), px, 208);
+  ctx.fillText(title + (selected && list.length && !order ? ' (клик — клавиатура)' : ''), px, cmdTop);
   chips = [];
   if (list.length === 0) {
-    ctx.fillStyle = '#26a69a'; rr(px, 216, pw, 46, 10);
+    ctx.fillStyle = '#26a69a'; rr(px, cmdTop + 8, pw, 46, 10);
     ctx.fillStyle = '#eaffea'; ctx.font = '18px Segoe UI';
     let wait = selected ? 'ждём — команды появятся, когда ячейка освободится' : 'кликни по ячейке → по команде — появится клавиатура';
     if (order && !selected) wait = 'кликни клетку из заказа и напечатай «письмо»';
@@ -2397,31 +2581,39 @@ function drawPanel() {
     if (o && o.kind === 'field' && fieldStage(o) === 'grow') wait = 'грядка растёт — скоро можно жать или косить';
     if (o && (o.kind === 'sawmill' || o.kind === 'warehouse')) wait = 'сюда веди дорогу, команда клетке не нужна';
     if (o && o.kind === 'house' && !LVL.verbs.some(v => v.cmd === 'сносить')) wait = 'дом стоит — соедини его дорогой с мостом';
-    ctx.fillText(wait, px + 12, 246);
+    ctx.fillText(wait, px + 12, cmdTop + 38);
   }
   list.forEach((c, i) => {
-    const y = 216 + i * 54;
-    chips.push({ x: px, y, w: pw, h: 46, cmd: c.cmd });
-    ctx.fillStyle = '#245c3d'; rr(px, y, pw, 46, 10);
+    const y = cmdTop + 8 + i * 62;
+    chips.push({ x: px, y, w: pw, h: 54, cmd: c.cmd });
+    ctx.fillStyle = '#245c3d'; rr(px, y, pw, 54, 10);
     ctx.strokeStyle = '#3d8a5f'; ctx.lineWidth = 2; ctx.stroke();
-    ctx.fillStyle = '#eaffea'; ctx.font = '19px Segoe UI';
-    ctx.fillText(c.label, px + 12, y + 30);
+    // КОМАНДА — крупно, жёлтым: именно её печатать
+    const v = LVL.verbs.find(x => x.cmd === c.cmd);
+    ctx.font = '22px Segoe UI'; ctx.textAlign = 'left';
+    ctx.fillText((v ? v.icon : '') + '', px + 14, y + 26);
+    ctx.fillStyle = '#ffe066'; ctx.font = 'bold 20px Segoe UI';
+    ctx.fillText(c.cmd, px + 50, y + 27);
+    // описание — мелко, серым: просто доп. информация
+    ctx.fillStyle = '#9dbfa5'; ctx.font = '13px Segoe UI';
+    if (v) ctx.fillText(v.hint, px + 50, y + 46);
   });
 
-  if (kbTarget) drawKeyboard(px, 386);
+  const listBottom = cmdTop + 8 + list.length * 62 + 6;
+  if (kbTarget) drawKeyboard(px, Math.max(300, listBottom + 8));
   else {
+    const logY = listBottom + 4;
     ctx.fillStyle = '#9dbfa5'; ctx.font = 'bold 15px Segoe UI';
-    ctx.fillText('ЖУРНАЛ:', px, 386);
-    ctx.fillStyle = '#0e2418'; rr(px, 396, pw, 148, 10);
-    ctx.font = '16px Segoe UI';
-    logArr.forEach((e, i) => {
+    ctx.fillText('ЖУРНАЛ:', px, logY);
+    ctx.fillStyle = '#0e2418'; rr(px, logY + 10, pw, Math.max(60, 596 - (logY + 10) - 34), 10);
+    ctx.font = '15px Segoe UI';
+    const maxLines = Math.max(2, Math.floor((596 - (logY + 10) - 34 - 14) / 21));
+    logArr.slice(0, maxLines).forEach((e, i) => {
       ctx.fillStyle = e.kind === 'err' ? '#ff8a80' : e.kind === 'warn' ? '#ffe082' : '#a5d6a7';
-      ctx.fillText(e.text, px + 12, 420 + i * 23);
+      ctx.fillText(e.text, px + 12, logY + 32 + i * 21);
     });
-    const acc = accPct();
     ctx.fillStyle = '#9dbfa5'; ctx.font = '14px Segoe UI';
-    ctx.fillText('Команд: ' + stats.typed + ' · построено: ' + stats.built + ' · точность: ' + acc + '%', px, 566);
-    ctx.fillText('Рабочих на поле: ' + workers.filter(w => w.phase !== 'leave').length, px, 586);
+    ctx.fillText('Команд: ' + stats.typed + ' · точность: ' + acc + '% · рабочих: ' + workers.filter(w => w.phase !== 'leave').length, px, 586);
   }
   ctx.fillStyle = '#ffe066'; ctx.font = 'bold 16px Segoe UI';
   let sel = '—';
@@ -2449,7 +2641,7 @@ function drawWin() {
     ctx.restore();
   }
   ctx.fillStyle = '#eaffea'; ctx.font = '26px Segoe UI';
-  const acc = accPct();
+  const acc2 = accPct();
   let li = 0;
   LVL.goal.forEach(g => {
     ctx.fillText(capitalize(goalName(g)) + ': ' + goalVal(g) + ' / ' + g.n, W / 2, 320 + li * 38); li++;
@@ -2458,6 +2650,23 @@ function drawWin() {
     ctx.fillText('Пни: выкорчевано ' + stats.stumpsCleared + ' · на поле ' + countKind('stump') + ' ✓', W / 2, 320 + li * 38); li++;
   }
   const y2 = 320 + li * 38;
+  ctx.font = '22px Segoe UI';
+  ctx.fillText('Точность печати: ' + acc2 + '%', W / 2, y2 + 10);
+  // за что звёзды — коротко и честно
+  ctx.font = '17px Segoe UI'; ctx.fillStyle = '#b9e4bd';
+  const critW = starForecast();
+  const whyStars = [
+    critW[1] && critW[2] ? 'точность ≥95 ✓' : critW[1] ? 'точность ≥85 ✓, до 95 не хватило' : 'точность ниже 85',
+    critW[3] ? 'без подсказок ✓' : 'открывал подсказку',
+    critW[4] ? 'пузыри ✓' : 'пузырей мало (' + poppedBubbles + '/' + bubblesNeed() + ')',
+  ];
+  ctx.fillText('★ прохождение · ★ ' + whyStars.join(' · ★ '), W / 2, y2 + 40);
+  // открытия: команды этого уровня теперь доступны везде
+  const own = (LEVELS[levelIdx].verbs || []).filter(v => ['build', 'work', 'clear', 'burn'].includes(v.run));
+  if (own.length) {
+    ctx.fillStyle = '#7ee787';
+    ctx.fillText('🔓 Открыто навсегда: ' + own.map(v => v.cmd).join(', '), W / 2, y2 + 68);
+  }
   ctx.font = '22px Segoe UI';
   ctx.fillText('Команд введено: ' + stats.typed + ' · точность печати: ' + acc + '% · время: ' + Math.round(winTime) + ' сек', W / 2, y2 + 10);
   const best = SAVE.best[levelIdx];
@@ -2515,6 +2724,7 @@ function draw() {
     ctx.globalAlpha = 1;
   }
   drawPanel();
+  if (state === 'play') drawTutorial();
   if (state === 'win') drawWin();
 }
 function drawWinOverlay() { if (state === 'win') drawWin(); }
@@ -2527,6 +2737,7 @@ function loop(t) {
   else if (state === 'city') cityUpdate(dt);
   else { for (const q of particles) { q.life -= dt; q.x += q.vx * dt; q.y += q.vy * dt; } particles = particles.filter(q => q.life > 0); }
   input.style.display = (state === 'menu' || state === 'shop' || state === 'parents' || state === 'settings') ? 'none' : '';
+  if (state === 'play') tutTick();
   draw();
   requestAnimationFrame(loop);
 }
@@ -2534,10 +2745,11 @@ function loop(t) {
 input.addEventListener('keydown', e => {
   if (e.key === 'Enter') { submit(); e.preventDefault(); }
   if (e.key === 'Escape') {
-    if (state === 'win') state = 'menu';
+    if (state === 'win') { state = 'menu'; mapCenterOn(mapFrontier()); }
     else if (state === 'shop' || state === 'parents' || state === 'settings' || state === 'city') state = 'menu';
     else if (kbTarget) kbTarget = null;
     else if (selected2) selected2 = null;
+    else if (tutSkip()) { /* туториал пропущен */ }
     else selected = null;
     setConfirm = false;
   }
@@ -2581,7 +2793,28 @@ canvas.addEventListener('mousemove', e => {
   hover = (c >= 0 && c < N && r >= 0 && r < N) ? { col: c, row: r } : null;
 });
 canvas.addEventListener('mouseleave', () => { hover = null; hoverNodeIdx = -1; });
+canvas.addEventListener('wheel', e => {
+  if (state === 'menu' && MAP_MAX_SCROLL > 0) {
+    mapScrollY = Math.max(0, Math.min(MAP_MAX_SCROLL, mapScrollY + (e.deltaY > 0 ? 80 : -80)));
+    e.preventDefault();
+  }
+}, { passive: false });
+canvas.addEventListener('mousedown', e => {
+  if (state === 'menu') mapDrag = { y: e.clientY, scroll: mapScrollY, moved: false };
+});
+addEventListener('mouseup', () => { mapDrag = null; });
+canvas.addEventListener('mousemove', e => {
+  if (mapDrag && state === 'menu') {
+    const dy = e.clientY - mapDrag.y;
+    if (Math.abs(dy) > 5) mapDrag.moved = true;
+    if (mapDrag.moved) {
+      const rect = canvas.getBoundingClientRect();
+      mapScrollY = Math.max(0, Math.min(MAP_MAX_SCROLL, mapDrag.scroll - dy * (720 / rect.height)));
+    }
+  }
+});
 canvas.addEventListener('click', e => {
+  if (state === 'menu' && mapDrag && mapDrag.moved) { mapDrag = null; return; } // это был драг, не клик
   const p = canvasPos(e);
   if (state === 'menu') {
     for (const id in menuBtns) {
@@ -2649,7 +2882,7 @@ canvas.addEventListener('click', e => {
   }
   if (state === 'rain') return;
   if (menuBtn && p.x >= menuBtn.x && p.x <= menuBtn.x + menuBtn.w && p.y >= menuBtn.y && p.y <= menuBtn.y + menuBtn.h) {
-    state = 'menu'; beep(400, 0.08, 'triangle');
+    state = 'menu'; mapCenterOn(mapFrontier()); beep(400, 0.08, 'triangle');
     return;
   }
   if (kbClose && p.x >= kbClose.x && p.x <= kbClose.x + kbClose.w && p.y >= kbClose.y && p.y <= kbClose.y + kbClose.h) {
