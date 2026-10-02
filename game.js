@@ -2376,9 +2376,10 @@ function drawDemoOverlay() {
 const KEY_ROWS = ['1234567890', 'йцукенгшщзхъ', 'фывапролджэ', 'ячсмитьбюё'];
 function drawKeyboard(px, top) {
   if (SAVE.settings.kb === 'скрытая') {
+    kbClose = null;
     ctx.fillStyle = '#9dbfa5'; ctx.font = '14px Segoe UI'; ctx.textAlign = 'left';
     ctx.fillText('подсказка скрыта (настройки ⚙)', px, top);
-    return;
+    return false;
   }
   ctx.save();
   if (SAVE.settings.kb === 'тусклая' || LVL.dimKb) ctx.globalAlpha = 0.35;
@@ -2399,7 +2400,8 @@ function drawKeyboard(px, top) {
   }
   if (complete && raw.length > t.length) { wrong = raw[t.length]; complete = false; }
   const letters = new Set(t.replace(/ /g, ''));
-  const KS = 38, GAP = 4;
+  // близко к низу панели — клавиатура компактнее, чтобы подсказка под ней влезла
+  const KS = top > 310 ? 34 : 38, GAP = top > 310 ? 3 : 4;
   const drawKey = (ch, x, y, w, h, label) => {
     let fill = '#1d3226', txt = '#789b7f', border = null, bw = 0;
     if (ch === ' ' ? t.includes(' ') : letters.has(ch)) { fill = '#2e5c40'; txt = '#eaffea'; }
@@ -2436,6 +2438,7 @@ function drawKeyboard(px, top) {
     ctx.fillText('· ' + logArr[0].text, px, sy + KS + 48);
   }
   ctx.restore();
+  return true;
 }
 
 // ---------- дерево уровней ----------
@@ -2503,12 +2506,14 @@ const MAP_POS = [
   [700, 2160], [700, 2270],                     // 29–30
 ];
 const MAP_BOTTOM = 2270;
-const MAP_VIEW_H = 560; // видимая высота области карты
+// Окно карты — между инфо-строкой (62–128) и кнопками (660): точки не выходят за его границы.
+const MAP_VIEW_TOP = 138, MAP_VIEW_BOT = 648, MAP_VIEW_H = MAP_VIEW_BOT - MAP_VIEW_TOP;
+const MAP_OFF_Y = 124; // отступ: первая точка целиком ниже инфо-строки
 let mapScrollY = 0, mapDrag = null;
-const MAP_MAX_SCROLL = Math.max(0, MAP_BOTTOM + 130 - MAP_VIEW_H);
-const mapPos = i => ({ x: MAP_POS[i][0], y: MAP_POS[i][1] - mapScrollY });
+const MAP_MAX_SCROLL = Math.max(0, MAP_BOTTOM + MAP_OFF_Y + 62 - MAP_VIEW_BOT);
+const mapPos = i => ({ x: MAP_POS[i][0], y: MAP_OFF_Y + MAP_POS[i][1] - mapScrollY });
 function mapCenterOn(i) {
-  mapScrollY = Math.max(0, Math.min(MAP_MAX_SCROLL, MAP_POS[i][1] - MAP_VIEW_H / 2));
+  mapScrollY = Math.max(0, Math.min(MAP_MAX_SCROLL, MAP_POS[i][1] + MAP_OFF_Y - MAP_VIEW_TOP - MAP_VIEW_H / 2));
 }
 function mapFrontier() {
   for (let i = 0; i < LEVELS.length; i++) if (levelUnlocked(i) && !SAVE.done[i]) return i;
@@ -2567,6 +2572,10 @@ function drawMenu() {
     }
   }
 
+  // связи и точки — только внутри окна карты (clip): не наезжают на инфо-строку и кнопки
+  ctx.save();
+  ctx.beginPath(); ctx.rect(16, MAP_VIEW_TOP, W - 32, MAP_VIEW_H); ctx.clip();
+
   // связи дерева
   for (let i = 0; i < LEVELS.length; i++) {
     for (const p of (LEVEL_TREE[i] || [])) {
@@ -2585,9 +2594,10 @@ function drawMenu() {
   mapNodes = [];
   for (let i = 0; i < LEVELS.length; i++) {
     const { x, y } = mapPos(i);
-    if (y < -70 || y > MAP_VIEW_H + 130) continue; // за пределами вида
+    if (y < MAP_VIEW_TOP - 90 || y > MAP_VIEW_BOT + 90) continue; // далеко за окном — не рисуем
     const R = 36;
-    mapNodes.push({ x, y, r: R, idx: i });
+    // кликабельны только точки, реально видимые в окне (не за обрезкой)
+    if (y + R > MAP_VIEW_TOP && y - R < MAP_VIEW_BOT) mapNodes.push({ x, y, r: R, idx: i });
     const un = levelUnlocked(i), dn = !!SAVE.done[i];
     const hl = hoverNodeIdx === i || lockedPick === i;
     ctx.beginPath(); ctx.arc(x, y, R, 0, 7);
@@ -2624,10 +2634,12 @@ function drawMenu() {
     ctx.fillStyle = dn ? '#2e6c46' : '#17382a'; ctx.fill();
     ctx.fillStyle = dn ? '#eaffea' : '#9dbfa5'; ctx.font = 'bold 12px Segoe UI'; ctx.textAlign = 'center';
     ctx.fillText(i + 1, x - R + 6, y - R + 11);
-    // имя рядом (только у открытых)
+    // имя рядом (только у открытых); у правого края — слева от точки, чтобы не обрезалось
     if (un || dn) {
-      ctx.fillStyle = dn ? '#a5d6a7' : '#eaffea'; ctx.font = 'bold 14px Segoe UI'; ctx.textAlign = 'left';
-      ctx.fillText(LEVELS[i].name, x + R + 10, y - 2);
+      ctx.fillStyle = dn ? '#a5d6a7' : '#eaffea'; ctx.font = 'bold 14px Segoe UI';
+      const lw = ctx.measureText(LEVELS[i].name).width;
+      if (x + R + 10 + lw > W - 24) { ctx.textAlign = 'right'; ctx.fillText(LEVELS[i].name, x - R - 10, y - 2); }
+      else { ctx.textAlign = 'left'; ctx.fillText(LEVELS[i].name, x + R + 10, y - 2); }
     }
     // статус под точкой
     if (dn) {
@@ -2647,12 +2659,15 @@ function drawMenu() {
     }
     ctx.textAlign = 'left';
   }
-  // индикатор прокрутки
+  ctx.restore(); // конец окна карты
+
+  // индикатор прокрутки — в границах окна карты
   if (MAP_MAX_SCROLL > 0) {
-    ctx.fillStyle = '#0e2418'; rr(1258, 140, 8, MAP_VIEW_H - 40, 4);
-    const th2 = Math.max(30, (MAP_VIEW_H - 40) * MAP_VIEW_H / (MAP_BOTTOM + 130));
-    const ty = 140 + (MAP_VIEW_H - 40 - th2) * (mapScrollY / MAP_MAX_SCROLL);
-    ctx.fillStyle = '#3d8a5f'; rr(1258, ty, 8, th2, 4);
+    const trY = MAP_VIEW_TOP + 2, trH = MAP_VIEW_H - 4;
+    ctx.fillStyle = '#0e2418'; rr(1252, trY, 8, trH, 4);
+    const th2 = Math.max(30, trH * MAP_VIEW_H / (MAP_MAX_SCROLL + MAP_VIEW_H));
+    const ty = trY + (trH - th2) * (mapScrollY / MAP_MAX_SCROLL);
+    ctx.fillStyle = '#3d8a5f'; rr(1252, ty, 8, th2, 4);
   }
 
   // кнопки экранов
@@ -2763,49 +2778,75 @@ function drawPanel() {
   }
   ctx.fillStyle = '#9dbfa5'; ctx.font = 'bold 15px Segoe UI';
   ctx.fillText(title + (selected && list.length && !order ? ' (клик — клавиатура)' : ''), px, cmdTop);
-  chips = [];
-  if (list.length === 0) {
-    ctx.fillStyle = '#26a69a'; rr(px, cmdTop + 8, pw, 46, 10);
-    ctx.fillStyle = '#eaffea'; ctx.font = '18px Segoe UI';
-    let wait = selected ? 'ждём — команды появятся, когда ячейка освободится' : 'кликни по ячейке → по команде — появится клавиатура';
-    if (order && !selected) wait = 'кликни клетку из заказа и напечатай «письмо»';
-    if (!selected && LVL.presets && LVL.presets.some(p => p.kind === 'mountain')) wait = 'горы уже стоят на карте — кликни по горе';
-    if (!selected && LVL.sea && !LVL.two) wait = 'море на краю карты — отведи реку';
-    if (!selected && LVL.sea && LVL.two) wait = 'море на краю — отведи реку, потом мост и дорога к дому';
-    const o = selected ? objs[cellName(selected.col, selected.row)] : null;
-    if (o && o.kind === 'field' && fieldStage(o) === 'grow') wait = 'грядка растёт — скоро можно жать или косить';
-    if (o && (o.kind === 'sawmill' || o.kind === 'warehouse')) wait = 'сюда веди дорогу, команда клетке не нужна';
-    if (o && o.kind === 'house' && !LVL.verbs.some(v => v.cmd === 'сносить')) wait = 'дом стоит — соедини его дорогой с мостом';
-    ctx.fillText(wait, px + 12, cmdTop + 38);
+  // ---- низ панели: зоны жёстко закреплены, элементы не наезжают друг на друга ----
+  // 466 — низ списка команд · 486/496–564 — журнал · 586 — статистика · 608 — подсказка ввода
+  const CHIPS_BOTTOM = 466;
+  let listTop = cmdTop + 8;
+  let kbOpen = false;
+  if (kbTarget) {
+    kbOpen = drawKeyboard(px, listTop); // клавиатура рисуется ВМЕСТО списка — иначе выталкивала всё за край
+    if (kbOpen) chips = [];
+    else listTop += 26; // клавиатура скрыта настройкой — список чуть ниже заметки
   }
-  list.forEach((c, i) => {
-    const y = cmdTop + 8 + i * 62;
-    chips.push({ x: px, y, w: pw, h: 54, cmd: c.cmd });
-    ctx.fillStyle = '#245c3d'; rr(px, y, pw, 54, 10);
-    ctx.strokeStyle = '#3d8a5f'; ctx.lineWidth = 2; ctx.stroke();
-    // КОМАНДА — крупно, жёлтым: именно её печатать
-    const v = LVL.verbs.find(x => x.cmd === c.cmd);
-    ctx.font = '22px Segoe UI'; ctx.textAlign = 'left';
-    ctx.fillText((v ? v.icon : '') + '', px + 14, y + 26);
-    ctx.fillStyle = '#ffe066'; ctx.font = 'bold 20px Segoe UI';
-    ctx.fillText(c.cmd, px + 50, y + 27);
-    // описание — мелко, серым: просто доп. информация
-    ctx.fillStyle = '#9dbfa5'; ctx.font = '13px Segoe UI';
-    if (v) ctx.fillText(v.hint, px + 50, y + 46);
-  });
+  if (!kbOpen) {
+    // чипы подстраиваются под свободное место: 1 колонка → 2 колонки → ниже → без подсказок
+    const avail = Math.max(46, CHIPS_BOTTOM - listTop);
+    let cols = 1;
+    if (list.length > 1 && list.length * 62 > avail) cols = 2;
+    const cw = cols === 2 ? (pw - 12) / 2 : pw;
+    const rows = Math.max(1, Math.ceil(list.length / cols));
+    let stride = 62, chH = 54;
+    if (rows * 62 > avail) { stride = 46; chH = 40; }
+    if (rows * 46 > avail) { stride = 34; chH = 30; }
+    const two = cols === 2;
+    const S = chH >= 54
+      ? { ic: two ? 19 : 22, cf: two ? 17 : 20, hf: two ? 11 : 13, cy: 27, hy: 46, tx: two ? 40 : 50, iox: two ? 12 : 14 }
+      : chH >= 40
+        ? { ic: 16, cf: 16, hf: 11, cy: 21, hy: 33, tx: 32, iox: 10 }
+        : { ic: 14, cf: 15, hf: 0, cy: 20, hy: 0, tx: 28, iox: 10 };
+    chips = [];
+    if (list.length === 0) {
+      ctx.fillStyle = '#26a69a'; rr(px, listTop, pw, 46, 10);
+      ctx.fillStyle = '#eaffea'; ctx.font = '18px Segoe UI';
+      let wait = selected ? 'ждём — команды появятся, когда ячейка освободится' : 'кликни по ячейке → по команде — появится клавиатура';
+      if (order && !selected) wait = 'кликни клетку из заказа и напечатай «письмо»';
+      if (!selected && LVL.presets && LVL.presets.some(p => p.kind === 'mountain')) wait = 'горы уже стоят на карте — кликни по горе';
+      if (!selected && LVL.sea && !LVL.two) wait = 'море на краю карты — отведи реку';
+      if (!selected && LVL.sea && LVL.two) wait = 'море на краю — отведи реку, потом мост и дорога к дому';
+      const o = selected ? objs[cellName(selected.col, selected.row)] : null;
+      if (o && o.kind === 'field' && fieldStage(o) === 'grow') wait = 'грядка растёт — скоро можно жать или косить';
+      if (o && (o.kind === 'sawmill' || o.kind === 'warehouse')) wait = 'сюда веди дорогу, команда клетке не нужна';
+      if (o && o.kind === 'house' && !LVL.verbs.some(v => v.cmd === 'сносить')) wait = 'дом стоит — соедини его дорогой с мостом';
+      ctx.fillText(wait, px + 12, listTop + 30);
+    }
+    list.forEach((c, i) => {
+      const col = two ? i % 2 : 0, row = Math.floor(i / cols);
+      const x = px + col * (cw + 12), y = listTop + row * stride;
+      chips.push({ x, y, w: cw, h: chH, cmd: c.cmd });
+      ctx.fillStyle = '#245c3d'; rr(x, y, cw, chH, chH >= 54 ? 10 : 8);
+      ctx.strokeStyle = '#3d8a5f'; ctx.lineWidth = 2; ctx.stroke();
+      // КОМАНДА — крупно, жёлтым: именно её печатать
+      const v = LVL.verbs.find(vx => vx.cmd === c.cmd);
+      ctx.textAlign = 'left';
+      ctx.font = S.ic + 'px Segoe UI';
+      ctx.fillText((v ? v.icon : '') + '', x + S.iox, y + S.cy);
+      ctx.fillStyle = '#ffe066'; ctx.font = 'bold ' + S.cf + 'px Segoe UI';
+      ctx.fillText(c.cmd, x + S.tx, y + S.cy);
+      // описание — мелко, серым: просто доп. информация
+      if (S.hf && v) {
+        ctx.fillStyle = '#9dbfa5'; ctx.font = S.hf + 'px Segoe UI';
+        ctx.fillText(v.hint, x + S.tx, y + S.hy);
+      }
+    });
 
-  const listBottom = cmdTop + 8 + list.length * 62 + 6;
-  if (kbTarget) drawKeyboard(px, Math.max(300, listBottom + 8));
-  else {
-    const logY = listBottom + 4;
+    // журнал закреплён над статистикой — не наползает на команды и поле ввода
     ctx.fillStyle = '#9dbfa5'; ctx.font = 'bold 15px Segoe UI';
-    ctx.fillText('ЖУРНАЛ:', px, logY);
-    ctx.fillStyle = '#0e2418'; rr(px, logY + 10, pw, Math.max(60, 596 - (logY + 10) - 34), 10);
+    ctx.fillText('ЖУРНАЛ:', px, 486);
+    ctx.fillStyle = '#0e2418'; rr(px, 496, pw, 68, 10);
     ctx.font = '15px Segoe UI';
-    const maxLines = Math.max(2, Math.floor((596 - (logY + 10) - 34 - 14) / 21));
-    logArr.slice(0, maxLines).forEach((e, i) => {
+    logArr.slice(0, 3).forEach((e, i) => {
       ctx.fillStyle = e.kind === 'err' ? '#ff8a80' : e.kind === 'warn' ? '#ffe082' : '#a5d6a7';
-      ctx.fillText(e.text, px + 12, logY + 32 + i * 21);
+      ctx.fillText(e.text, px + 12, 518 + i * 21);
     });
     ctx.fillStyle = '#9dbfa5'; ctx.font = '14px Segoe UI';
     ctx.fillText('Команд: ' + stats.typed + ' · точность: ' + acc + '% · рабочих: ' + workers.filter(w => w.phase !== 'leave').length, px, 586);
