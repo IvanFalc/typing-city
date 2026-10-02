@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Печатный Город — уютная игра-тренажёр печати для детей: строй город, печатая слова. 30 уровней, звёзды, магазин декораций.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏙️</text></svg>">
+<title>Печатный Город — тренажёр печати для детей</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #10261b; height: 100%; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
+  body { display: flex; align-items: center; justify-content: center; }
+  #wrap { position: relative; transform-origin: center center; }
+  canvas { display: block; background: #17382a; border-radius: 12px; box-shadow: 0 0 50px rgba(0,0,0,.55); }
+  #cmd {
+    position: absolute; left: 730px; top: 616px; width: 496px; height: 54px;
+    box-sizing: border-box; font-size: 26px; font-family: 'Segoe UI', sans-serif;
+    padding: 4px 12px; border: 3px solid #6d9c10; border-radius: 10px; outline: none;
+    background: #0e2418; color: #eaffea;
+  }
+  #cmd.err { border-color: #e57373; animation: shake .3s; }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game" width="1280" height="720"></canvas>
+  <input id="cmd" placeholder="напечатай команду" autocomplete="off" spellcheck="false" autofocus>
+</div>
+<script src="game.js"></script>
+</body>
+</html>
