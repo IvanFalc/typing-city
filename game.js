@@ -2612,10 +2612,10 @@ function drawMenu() {
       ctx.strokeStyle = 'rgba(255,224,102,0.25)'; ctx.lineWidth = 2; ctx.stroke();
     }
     if (newlyUnlocked.includes(i)) {
+      // белое пульсирующее кольцо; сама метка «НОВОЕ!» — под точкой (в статусе),
+      // чтобы не перекрывать звёзды уровня выше
       ctx.beginPath(); ctx.arc(x, y, R + 9 + Math.sin(now * 5) * 3, 0, 7);
       ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke();
-      ctx.fillStyle = '#ffe066'; ctx.font = 'bold 14px Segoe UI'; ctx.textAlign = 'center';
-      ctx.fillText('НОВОЕ!', x, y - R - 24);
     }
     if (hl) { ctx.beginPath(); ctx.arc(x, y, R + 3, 0, 7); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); }
     // иконка (у закрытых — «?»: суть уровня скрыта до открытия)
@@ -2651,8 +2651,15 @@ function drawMenu() {
       ctx.fillStyle = '#0e2418'; ctx.font = 'bold 13px Segoe UI';
       ctx.fillText('✓', x + R - 6, y - R + 11);
     } else if (un) {
-      ctx.fillStyle = '#ffe066'; ctx.font = '13px Segoe UI'; ctx.textAlign = 'center';
-      ctx.fillText('☆☆☆☆☆', x, y + R + 18);
+      ctx.textAlign = 'center';
+      if (newlyUnlocked.includes(i)) {
+        // метка вместо пустых звёзд: уровень ещё не пройден, звёзд и так нет
+        ctx.fillStyle = '#ffe066'; ctx.font = 'bold 13px Segoe UI';
+        ctx.fillText('НОВОЕ!', x, y + R + 18);
+      } else {
+        ctx.fillStyle = '#ffe066'; ctx.font = '13px Segoe UI';
+        ctx.fillText('☆☆☆☆☆', x, y + R + 18);
+      }
     } else {
       ctx.font = '15px Segoe UI'; ctx.textAlign = 'center';
       ctx.fillText('🔒', x, y + R + 17);
