@@ -612,10 +612,11 @@ function tutTick() {
 function tutSkip() {
   if (!tut) return false;
   tut = null;
-  SAVE.tutDone = SAVE.tutDone || {};
-  SAVE.tutDone[levelIdx] = true;
-  persistSave();
-  log('Обучение пропущено', 'info');
+  if (!(demo && demo.on)) { // ДЕМО: не помечаем обучение пройденным
+    SAVE.tutDone = SAVE.tutDone || {};
+    SAVE.tutDone[levelIdx] = true;
+    persistSave();
+  }
   return true;
 }
 function drawTutorial() {
@@ -849,6 +850,8 @@ function winLevel() {
   sndWin();
   const acc = accPct();
   const stars = starForecast().filter(Boolean).length;
+  lastWinStars = stars;
+  if (demo && demo.on) return; // ДЕМО: сейв и статистику не трогаем
   const wasDone = Object.assign({}, SAVE.done);
   const prev = SAVE.stars[levelIdx] || 0;
   if (stars > prev) SAVE.stars[levelIdx] = stars;
@@ -867,7 +870,6 @@ function winLevel() {
   SAVE.wins = (SAVE.wins || 0) + 1;
   SAVE.history.push({ level: levelIdx + 1, acc: acc, time: Math.round(winTime), stars: stars, d: Date.now() });
   if (SAVE.history.length > 60) SAVE.history.shift();
-  lastWinStars = stars;
   mergeTelemIntoSave();
   persistSave();
   telem('level_win', { level: levelIdx + 1, time: Math.round(winTime), acc: acc, typed: stats.typed, chars: TELEM.chars, stars: stars });
@@ -2178,6 +2180,199 @@ function drawWorker(w) {
   ctx.restore();
 }
 
+// ---------- ДЕМО: наблюдаемое автопрохождение ----------
+// Запуск: кнопка «▶ демо» на карте, или index.html?demo=1 / ?demo=N.
+// Игра сама проходит эталонные решения (SOLUTIONS): кликает клетки,
+// печатает команды по символу, ловит пузыри, ждёт рабочих, идёт дальше.
+// Прогресс и сейв НЕ изменяются. Esc — выход.
+let demo = null;
+let demoBtns = {};
+function firstNotDoneLevel() {
+  for (let i = 0; i < LEVELS.length; i++) if (!SAVE.done[i]) return i;
+  return 0;
+}
+function demoStart(fromIdx, speed) {
+  const i = Math.max(0, Math.min(LEVELS.length - 1, fromIdx || 0));
+  demo = {
+    on: true, paused: false, i, step: -1, phase: 'between', t: 0, speed: speed || 1,
+    buf: '', ci: 0, sel: null, sel2: null, retries: 0, redo: false, after: null,
+    isBubble: false, isWeed: false, isRain: false, rainGot: 0, rainN: 0,
+    bubblesCaught: 0, waitSec: 0, msg: 'старт…',
+  };
+  simHold = true;
+  applyLevel(i); reset();
+  if (tut) tutSkip();
+  log('▶ ДЕМО: игра играет сама — просто наблюдай (Esc — выход)', 'info');
+}
+function demoStop() {
+  if (!demo) return;
+  demo = null;
+  simHold = false;
+  input.value = '';
+  state = 'menu'; mapCenterOn(mapFrontier());
+  beep(400, 0.08, 'triangle');
+}
+function demoGoto(i) {
+  if (i >= LEVELS.length) { log('▶ ДЕМО: вся кампания показана'); demoStop(); return; }
+  demo.i = i; demo.step = -1; demo.phase = 'between'; demo.t = 0;
+  demo.bubblesCaught = 0; demo.isBubble = demo.isWeed = demo.isRain = false;
+  applyLevel(i); reset();
+  if (tut) tutSkip();
+}
+function demoAdvance() { demo.step++; demoSetupStep(); }
+function demoSetupStep() {
+  const st = SOLUTIONS[demo.i][demo.step];
+  demo.retries = 0; demo.redo = false;
+  if (!st) { demo.phase = 'finish'; demo.t = 0; demo.msg = 'ждём выполнения цели…'; return; }
+  if (st.rain) { demo.phase = 'rain-wait'; demo.t = 0; demo.rainGot = 0; demo.rainN = st.rain; demo.msg = 'жду падающие слова…'; return; }
+  if (st.wait) { demo.phase = 'wait'; demo.t = 0; demo.waitSec = st.wait; demo.msg = 'пауза ' + st.wait + ' с'; return; }
+  if (st.waitWork) { demo.phase = 'waitwork'; demo.t = 0; demo.msg = 'рабочие трудятся…'; return; }
+  if (st.sweep) { demo.phase = 'sweep'; demo.t = 0; demo.after = st.cmd ? st : null; demo.msg = 'пропалываем сорняки'; return; }
+  demoSetupCmd(st);
+}
+function demoSetupCmd(st) {
+  const inline = /^[а-яё]\d{1,2}\s/.test(st.cmd);
+  demo.sel = null; demo.sel2 = null;
+  if (st.cells) { demo.sel = addrCell(st.cells[0]); demo.sel2 = addrCell(st.cells[1]); }
+  else if (st.cell && !inline) demo.sel = addrCell(st.cell);
+  demo.buf = st.cmd; demo.ci = 0;
+  demo.phase = demo.sel ? 'select' : 'type';
+  demo.t = 0;
+  const where = demo.sel
+    ? cellName(demo.sel.col, demo.sel.row) + (demo.sel2 ? ' → ' + cellName(demo.sel2.col, demo.sel2.row) : '') + ' · '
+    : '';
+  demo.msg = where + 'печатаю: «' + st.cmd + '»';
+}
+function demoBusy() {
+  const w = workers.filter(x => x.phase !== 'leave').length;
+  const b = Object.keys(objs).filter(k => objs[k].burning).length;
+  return w + b > 0;
+}
+function demoTick(dtRaw) {
+  const dt = Math.min(0.05, dtRaw) * demo.speed;
+  if (state === 'play') update(dt);
+  else if (state === 'rain') rainUpdate(dt);
+  demo.t += dt;
+  switch (demo.phase) {
+    case 'between':
+      if (demo.t >= 0.55) {
+        if (bubbles.length && demo.bubblesCaught < bubblesNeed()) {
+          demo.buf = bubbles[0].word; demo.ci = 0; demo.isBubble = true;
+          demo.phase = 'type'; demo.t = 0;
+          demo.msg = 'ловлю пузырь: «' + bubbles[0].word + '»';
+        } else demoAdvance();
+      }
+      break;
+    case 'select':
+      if (demo.t >= 0.45) {
+        selected = { col: demo.sel.col, row: demo.sel.row }; selected2 = null;
+        if (demo.sel2) selected2 = { col: demo.sel2.col, row: demo.sel2.row };
+        beep(500, 0.05, 'triangle', 0.07);
+        demo.phase = 'type'; demo.t = 0; demo.ci = 0;
+      }
+      break;
+    case 'type':
+      if (demo.t >= 0.13) {
+        demo.t = 0; demo.ci++;
+        input.value = demo.buf.slice(0, demo.ci);
+        if (demo.ci >= demo.buf.length) { demo.phase = 'enter'; demo.t = 0; }
+      }
+      break;
+    case 'enter':
+      if (demo.t >= 0.3) {
+        submit();
+        if (lastSubmit.ok) {
+          if (demo.isWeed) { demo.isWeed = false; demo.phase = 'sweep'; demo.t = 0; break; }
+          if (demo.isBubble) { demo.isBubble = false; demo.bubblesCaught++; demo.phase = 'between'; demo.t = 0; break; }
+          if (demo.isRain) {
+            demo.isRain = false; demo.rainGot++;
+            if (demo.rainGot >= demo.rainN) demoAdvance();
+            else { demo.phase = 'rain-wait'; demo.t = 0; }
+            break;
+          }
+          demo.phase = 'between'; demo.t = 0;
+        } else {
+          const m = lastSubmit.msg || '';
+          if (demo.isRain) { demo.isRain = false; demo.phase = 'rain-wait'; demo.t = 0; break; }
+          if (/сорняк/.test(m)) { demo.phase = 'sweep'; demo.redo = true; demo.t = 0; demo.after = null; break; }
+          if (/работа|горит/.test(m)) { demo.phase = 'waitwork'; demo.redo = true; demo.t = 0; break; }
+          demo.retries++;
+          if (demo.retries <= 4) { demo.phase = 'retpause'; demo.t = 0; }
+          else { log('▶ ДЕМО: шаг не прошёл — дальше («' + m + '»)', 'warn'); demoAdvance(); }
+        }
+      }
+      break;
+    case 'retpause':
+      if (demo.t >= 0.8) demoSetupCmd(SOLUTIONS[demo.i][demo.step]);
+      break;
+    case 'sweep': {
+      const weeds = Object.keys(objs).filter(k => objs[k].kind === 'weed');
+      if (!weeds.length) {
+        if (demo.redo) demoSetupCmd(SOLUTIONS[demo.i][demo.step]);
+        else if (demo.after) { const a = demo.after; demo.after = null; demoSetupCmd(a); }
+        else demoAdvance();
+        break;
+      }
+      if (demo.t >= 0.5) {
+        const w = objs[weeds[0]];
+        selected = { col: w.col, row: w.row }; selected2 = null;
+        demo.buf = 'полоть'; demo.ci = 0; demo.isWeed = true;
+        demo.phase = 'type'; demo.t = 0;
+        demo.msg = 'полю: ' + weeds[0];
+      }
+      break;
+    }
+    case 'wait':
+      if (demo.t >= demo.waitSec) demoAdvance();
+      break;
+    case 'waitwork':
+      if (!demoBusy() || demo.t > 240) {
+        if (demo.redo) demoSetupCmd(SOLUTIONS[demo.i][demo.step]);
+        else demoAdvance();
+      }
+      break;
+    case 'rain-wait':
+      if (rainWords.length && demo.t >= 0.8) {
+        demo.buf = rainWords[0].word; demo.ci = 0; demo.isRain = true;
+        demo.phase = 'type'; demo.t = 0;
+        demo.msg = 'печатаю: «' + demo.buf + '»';
+      }
+      break;
+    case 'finish':
+      if (state === 'win') { demo.phase = 'win'; demo.t = 0; }
+      else if (demo.t > 25) { log('▶ ДЕМО: цель не закрылась — следующий уровень', 'warn'); demoGoto(demo.i + 1); }
+      break;
+    case 'win':
+      if (demo.t >= 4) demoGoto(demo.i + 1);
+      break;
+  }
+}
+function drawDemoOverlay() {
+  if (!demo || !demo.on) return;
+  // баннер действия
+  ctx.fillStyle = 'rgba(6,20,12,0.88)'; rr(16, 62, 540, 60, 12);
+  ctx.strokeStyle = '#ffe066'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = '#ffe066'; ctx.font = 'bold 18px Segoe UI';
+  ctx.fillText('▶ ДЕМО · уровень ' + (demo.i + 1) + ': ' + LEVELS[demo.i].name, 32, 86);
+  ctx.fillStyle = '#b9e4bd'; ctx.font = '14px Segoe UI';
+  ctx.fillText(demo.msg + (demo.paused ? '   ⏸ ПАУЗА' : ''), 32, 108);
+  // панель управления
+  const defs = [['sp05', '0.5×', 58], ['sp1', '1×', 46], ['sp2', '2×', 46], ['sp4', '4×', 46], ['skip', '⏭ уровень', 122], ['pause', demo.paused ? '▶' : '⏸', 54], ['stop', '⏹ стоп', 106]];
+  demoBtns = {};
+  let x = 16; const y = 664, h = 44;
+  for (const [id, label, w] of defs) {
+    demoBtns[id] = { x, y, w, h };
+    const active = (id === 'sp05' && demo.speed === 0.5) || (id === 'sp1' && demo.speed === 1) || (id === 'sp2' && demo.speed === 2) || (id === 'sp4' && demo.speed === 4);
+    ctx.fillStyle = active ? '#2e6c46' : 'rgba(14,36,24,0.9)'; rr(x, y, w, h, 10);
+    ctx.strokeStyle = active ? '#ffe066' : '#3d8a5f'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#eaffea'; ctx.font = 'bold 15px Segoe UI'; ctx.textAlign = 'center';
+    ctx.fillText(label, x + w / 2, y + 28);
+    ctx.textAlign = 'left';
+    x += w + 8;
+  }
+}
+
 const KEY_ROWS = ['1234567890', 'йцукенгшщзхъ', 'фывапролджэ', 'ячсмитьбюё'];
 function drawKeyboard(px, top) {
   if (SAVE.settings.kb === 'скрытая') {
@@ -2462,7 +2657,7 @@ function drawMenu() {
 
   // кнопки экранов
   menuBtns = {};
-  const labels = [['shop', '🛒 магазин'], ['city', '🏙 мой город'], ['parents', '📊 родителям'], ['settings', '⚙ настройки']];
+  const labels = [['shop', '🛒 магазин'], ['city', '🏙 мой город'], ['parents', '📊 родителям'], ['settings', '⚙ настройки'], ['demo', '▶ демо']];
   labels.forEach((lb, i) => {
     const x = 30 + i * 236;
     menuBtns[lb[0]] = { x, y: 660, w: 220, h: 44 };
@@ -2668,15 +2863,10 @@ function drawWin() {
     ctx.fillText('🔓 Открыто навсегда: ' + own.map(v => v.cmd).join(', '), W / 2, y2 + 68);
   }
   ctx.font = '22px Segoe UI';
-  ctx.fillText('Команд введено: ' + stats.typed + ' · точность печати: ' + acc + '% · время: ' + Math.round(winTime) + ' сек', W / 2, y2 + 10);
-  const best = SAVE.best[levelIdx];
-  if (best) {
-    ctx.fillStyle = '#9dbfa5'; ctx.font = '18px Segoe UI';
-    ctx.fillText('Лучший результат: точность ' + best.acc + '% · время ' + best.time + ' с · звёзд ' + (best.stars || 0) + '/5', W / 2, y2 + 42);
-  }
+  ctx.fillText('Команд введено: ' + stats.typed + ' · время: ' + Math.round(winTime) + ' сек (демо не сохраняется)', W / 2, y2 + 94);
   ctx.fillStyle = Math.sin(Date.now() / 300) > 0 ? '#ffe066' : '#ffca28';
   ctx.font = 'bold 26px Segoe UI';
-  ctx.fillText('Enter — карта города' + (newlyUnlocked.length ? ' · открылось: ' + newlyUnlocked.length + '!' : ''), W / 2, y2 + 100);
+  ctx.fillText('Enter — карта города' + (newlyUnlocked.length ? ' · открылось: ' + newlyUnlocked.length + '!' : ''), W / 2, y2 + 130);
   ctx.fillStyle = '#9dbfa5'; ctx.font = '18px Segoe UI';
   ctx.fillText('Esc — меню уровней', W / 2, y2 + 135);
 }
@@ -2688,7 +2878,7 @@ function draw() {
   if (state === 'city') { drawCity(); return; }
   if (state === 'parents') { drawParents(); return; }
   if (state === 'settings') { drawSettings(); return; }
-  if (state === 'rain') { drawRain(); drawWinOverlay(); return; }
+  if (state === 'rain') { drawRain(); drawWinOverlay(); if (demo && demo.on) drawDemoOverlay(); return; }
   ctx.fillStyle = TH().bg; ctx.fillRect(0, 0, W, H);
   ctx.save();
   if (shake > 0) ctx.translate((Math.random() - .5) * shake * 30, (Math.random() - .5) * shake * 30);
@@ -2726,13 +2916,15 @@ function draw() {
   drawPanel();
   if (state === 'play') drawTutorial();
   if (state === 'win') drawWin();
+  if (demo && demo.on) drawDemoOverlay();
 }
 function drawWinOverlay() { if (state === 'win') drawWin(); }
 
 let last = performance.now();
 function loop(t) {
   const dt = Math.min(0.05, (t - last) / 1000); last = t; now = t / 1000;
-  if (state === 'play' && !simHold) update(dt);
+  if (demo && demo.on) { if (!demo.paused) demoTick(dt); }
+  else if (state === 'play' && !simHold) update(dt);
   else if (state === 'rain' && !simHold) rainUpdate(dt);
   else if (state === 'city') cityUpdate(dt);
   else { for (const q of particles) { q.life -= dt; q.x += q.vx * dt; q.y += q.vy * dt; } particles = particles.filter(q => q.life > 0); }
@@ -2743,6 +2935,12 @@ function loop(t) {
 }
 
 input.addEventListener('keydown', e => {
+  if (demo && demo.on) {
+    // в демо ввод заблокирован, Esc — выход
+    if (e.key === 'Escape') demoStop();
+    e.preventDefault();
+    return;
+  }
   if (e.key === 'Enter') { submit(); e.preventDefault(); }
   if (e.key === 'Escape') {
     if (state === 'win') { state = 'menu'; mapCenterOn(mapFrontier()); }
@@ -2816,6 +3014,24 @@ canvas.addEventListener('mousemove', e => {
 canvas.addEventListener('click', e => {
   if (state === 'menu' && mapDrag && mapDrag.moved) { mapDrag = null; return; } // это был драг, не клик
   const p = canvasPos(e);
+  if (demo && demo.on) {
+    // управление демо: скорость/пауза/стоп; остальные клики игнорируем
+    for (const id in demoBtns) {
+      const b = demoBtns[id];
+      if (p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h) {
+        if (id === 'stop') demoStop();
+        else if (id === 'pause') demo.paused = !demo.paused;
+        else if (id === 'skip') demoGoto(demo.i + 1);
+        else if (id === 'sp05') demo.speed = 0.5;
+        else if (id === 'sp1') demo.speed = 1;
+        else if (id === 'sp2') demo.speed = 2;
+        else if (id === 'sp4') demo.speed = 4;
+        beep(600, 0.06, 'triangle', 0.08);
+        return;
+      }
+    }
+    return;
+  }
   if (state === 'menu') {
     for (const id in menuBtns) {
       const b = menuBtns[id];
@@ -2824,6 +3040,7 @@ canvas.addEventListener('click', e => {
         else if (id === 'city') { state = 'city'; citySyncPets(); log('Ставь вещи: «фонтан г4»', 'info'); beep(700, 0.08, 'triangle'); }
         else if (id === 'parents') { state = 'parents'; beep(700, 0.08, 'triangle'); }
         else if (id === 'settings') { state = 'settings'; beep(700, 0.08, 'triangle'); }
+        else if (id === 'demo') { beep(700, 0.08, 'triangle'); demoStart(mapFrontier(), 1); }
         return;
       }
     }
@@ -2963,6 +3180,9 @@ window.__test = {
   rainTick: dt => rainUpdate(dt),
   acc: () => accPct(),
   stats: () => Object.assign({}, stats),
+  demoStart: (i, sp) => demoStart(i, sp),
+  demoStop: () => demoStop(),
+  demoInfo: () => demo ? { on: demo.on, level: demo.i + 1, step: demo.step, phase: demo.phase, speed: demo.speed, msg: demo.msg } : null,
 };
 
 applyLevel(0);
@@ -2976,6 +3196,13 @@ requestAnimationFrame(loop);
     const i = Math.min(LEVELS.length, Math.max(1, parseInt(m[1], 10))) - 1;
     setTimeout(() => { applyLevel(i); reset(); }, 0);
   }
+})();
+
+// ?demo=N — демо конкретного уровня, ?demo — с первого непройденного
+(function () {
+  const m = location.search.match(/[?&]demo=(\d+)/);
+  if (m) { setTimeout(() => demoStart(parseInt(m[1], 10) - 1, 1), 500); return; }
+  if (/[?&]demo\b/.test(location.search)) setTimeout(() => demoStart(firstNotDoneLevel(), 1), 500);
 })();
 
 // автозапуск тестов: index.html?test=1
