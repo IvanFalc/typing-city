@@ -25,17 +25,23 @@
                display: grid; grid-template-columns: repeat(5, 1fr); pointer-events: none; }
   .gridfield i { border: 1px solid rgba(61,138,95,.18); }
   .el { position: absolute; background: rgba(36,92,61,.55); border: 2px solid #3d8a5f; border-radius: 8px; cursor: grab;
-        display: flex; align-items: flex-start; padding: 2px 6px; user-select: none; }
-  .el .name { font-size: 11px; font-weight: bold; color: #ffe066; white-space: nowrap; pointer-events: none; }
+        display: flex; align-items: flex-start; padding: 2px 6px; user-select: none; touch-action: none; }
+  .el .name { font-size: 11px; font-weight: bold; color: #ffe066; white-space: nowrap; pointer-events: none; overflow: hidden; }
   .el.selected { border-color: #ffe066; background: rgba(255,224,102,.18); z-index: 5; }
   .el.auto { border-style: dashed; background: rgba(38,166,154,.16); cursor: default; }
   .el.demo { border-color: #b39ddb; background: rgba(179,157,219,.14); }
   .el.demo .name { color: #d1c4e9; }
+  .el.resizing { cursor: inherit; }
+  /* ручки изменения размера */
+  .rz { position: absolute; background: #ffe066; border: 1px solid #7a6516; border-radius: 3px; z-index: 6; }
+  .rz-se { right: -6px; bottom: -6px; width: 13px; height: 13px; cursor: nwse-resize; }
+  .rz-s  { bottom: -6px; left: 50%; margin-left: -14px; width: 28px; height: 13px; cursor: ns-resize; }
+  .rz-n  { top: -6px; left: 50%; margin-left: -14px; width: 28px; height: 13px; cursor: ns-resize; }
   /* свойства */
   #props { flex: 0 0 265px; background: #0c1c13; border: 1px solid #245c3d; border-radius: 10px; padding: 12px; }
   #props h3 { margin: 0 0 4px; font-size: 15px; color: #ffe066; }
   #props .hint { color: #9dbfa5; font-size: 12px; margin-bottom: 10px; }
-  .row { display: flex; justify-content: space-between; align-items: center; margin: 6px 0; }
+  .row { display: flex; justify-content: space-between; align-items: center; margin: 6px 0; gap: 8px; }
   .row label { color: #b9e4bd; }
   .row input { width: 90px; background: #123425; color: #eaffea; border: 1px solid #3d8a5f; border-radius: 6px; padding: 4px 8px; font: 13px 'Segoe UI'; }
   #legend { margin-top: 14px; font-size: 12px; color: #9dbfa5; line-height: 1.5; }
@@ -44,7 +50,7 @@
 <body>
 <header>
   <b>Верстак раскладки</b>
-  <span style="color:#9dbfa5">тащи элементы мышью · выделяй · правь цифрами</span>
+  <span style="color:#9dbfa5">тащи мышью · тяни за жёлтую ручку — размер · правь цифрами</span>
   <button id="save">💾 Сохранить</button>
   <button id="download">⬇ Скачать layout.json</button>
   <button id="reset" class="warn">↺ Дефолты</button>
@@ -61,13 +67,16 @@
     <div id="fields"></div>
     <div id="legend">
       <b style="color:#b9e4bd">Как это работает</b><br>
-      • У каждого элемента — своя зона; наложений нет, если зоны не пересекаются.<br>
-      • <i>Клавиатура</i> — всплывающая: место под неё не задаётся. Когда она открыта,
-      список команд, журнал и статистика скрываются, и клавиатура занимает всё
-      освобождённое пространство до строки ввода.<br>
+      • Перетаскивай элемент мышью — двигается вся зона.<br>
+      • <b style="color:#ffe066">Жёлтые ручки</b> меняют размер: ◢ за угол
+      (ширина+высота), ▬ за нижний/верхний край (у баров целей — шаг,
+      у списка команд — нижняя граница, у журнала — высота).<br>
+      • <i>Клавиатура</i> — всплывающая: места под неё не задаётся. Когда она
+      открыта, список команд, журнал и статистика скрываются, и клавиатура
+      занимает всё освобождённое пространство до строки ввода.<br>
       • Для текстовых элементов <b>y</b> — базовая линия текста (низ букв).<br>
-      • «Сохранить» пишет layout.json на сервер (python server.py); если сервера нет —
-      скачай файл и положи его в папку игры рядом с index.html.<br>
+      • «Сохранить» пишет layout.json на сервер (python server.py); если сервера
+      нет — скачай файл и положи его в папку игры рядом с index.html.<br>
       • Демо-элементы видны только в режиме ?demo=N, но настраиваются здесь.
     </div>
   </div>
@@ -94,22 +103,23 @@ const DEFAULTS = {
     demo_controls:{ x: 16, y: 664, h: 44 },
   },
 };
-// ---- описание элементов: подпись, размеры бокса, редактируемые поля ----
+// ---- описание элементов: подпись, бокс, поля, ручки размера ----
+// rz: 'se' — угол (w+h), 's' — нижний край, 'n' — верхний край
 const META = {
   title_level:  { label: 'Заголовок уровня', box: e => [e.x, e.y - 26, 400, 30], fields: ['x', 'y'] },
-  btn_map:      { label: 'Кнопка «⌂ карта»', box: e => [e.x, e.y, e.w, e.h], fields: ['x', 'y', 'w', 'h'] },
+  btn_map:      { label: 'Кнопка «⌂ карта»', box: e => [e.x, e.y, e.w, e.h], fields: ['x', 'y', 'w', 'h'], rz: ['se'] },
   subtitle:     { label: 'Строка поля и цели', box: e => [e.x, e.y - 20, 520, 24], fields: ['x', 'y'] },
   wallet:       { label: 'Кошелёк ресурсов', box: e => [e.x, e.y - 18, 520, 22], fields: ['x', 'y'] },
-  goals:        { label: 'Бары целей (макс. 4)', box: e => [e.x, e.y, 530, 4 * e.stride], fields: ['x', 'y', 'stride', 'barH'] },
+  goals:        { label: 'Бары целей (макс. 4)', box: e => [e.x, e.y, 530, 4 * e.stride], fields: ['x', 'y', 'stride', 'barH'], rz: ['s'] },
   stars:        { label: 'Статус звёзд', box: e => [e.x, e.y - 18, 520, 44], fields: ['x', 'y'] },
-  commands:     { label: 'Команды: заголовок + список', box: e => [e.x, e.titleY - 20, 530, e.bottom - e.titleY + 20], fields: ['x', 'titleY', 'bottom'] },
-  journal:      { label: 'Журнал событий', box: e => [e.x, e.labelY - 16, 530, e.y + e.h - e.labelY + 16], fields: ['x', 'labelY', 'y', 'h'] },
+  commands:     { label: 'Команды: заголовок + список', box: e => [e.x, e.titleY - 20, 530, e.bottom - e.titleY + 20], fields: ['x', 'titleY', 'bottom'], rz: ['n', 's'] },
+  journal:      { label: 'Журнал событий', box: e => [e.x, e.labelY - 16, 530, e.y + e.h - e.labelY + 16], fields: ['x', 'labelY', 'y', 'h'], rz: ['n', 's'] },
   stats:        { label: 'Строка статистики', box: e => [e.x, e.y - 16, 520, 20], fields: ['x', 'y'] },
   cell_prompt:  { label: 'Подсказка ввода', box: e => [e.x, e.y - 18, 520, 22], fields: ['x', 'y'] },
-  input_line:   { label: 'Строка ввода (DOM)', box: e => [e.x, e.y, e.w, e.h], fields: ['x', 'y', 'w', 'h'] },
+  input_line:   { label: 'Строка ввода (DOM)', box: e => [e.x, e.y, e.w, e.h], fields: ['x', 'y', 'w', 'h'], rz: ['se'] },
   keyboard:     { label: 'Клавиатура (авто-зона)', auto: true },
-  demo_banner:  { label: 'ДЕМО-баннер', box: e => [e.x, e.y, e.w, e.h], fields: ['x', 'y', 'w', 'h'], demo: true },
-  demo_controls:{ label: 'Кнопки ДЕМО', box: e => [e.x, e.y, 570, e.h], fields: ['x', 'y', 'h'], demo: true },
+  demo_banner:  { label: 'ДЕМО-баннер', box: e => [e.x, e.y, e.w, e.h], fields: ['x', 'y', 'w', 'h'], rz: ['se'], demo: true },
+  demo_controls:{ label: 'Кнопки ДЕМО', box: e => [e.x, e.y, 570, e.h], fields: ['x', 'y', 'h'], rz: ['s'], demo: true },
 };
 const FIELD_HINTS = {
   titleY: 'базовая линия заголовка; список начинается ниже (+8)',
@@ -118,11 +128,14 @@ const FIELD_HINTS = {
   stride: 'шаг между барами целей',
   barH: 'высота бара',
 };
+const clamp = (v, a, b) => Math.max(a, Math.min(b, Math.round(v)));
 
 let LAYOUT = JSON.parse(JSON.stringify(DEFAULTS));
 let selected = null;
 const stage = document.getElementById('stage');
 const statusEl = document.getElementById('status');
+let kbBox = null;
+const boxes = {}; // id → DOM-узел (живёт, пока не перестраиваем)
 
 function say(msg, isErr) {
   statusEl.textContent = msg;
@@ -131,67 +144,129 @@ function say(msg, isErr) {
   say.t = setTimeout(() => { statusEl.textContent = ''; }, 5000);
 }
 
-// ---- отрисовка схемы ----
-function render() {
+// ---- построение боксов (один раз; дальше только syncBoxes) ----
+function buildBoxes() {
   stage.querySelectorAll('.el').forEach(n => n.remove());
-  const E = LAYOUT.elements;
-  // клавиатура: авто-зона от заголовка команд до строки ввода
-  const kb = document.createElement('div');
-  kb.className = 'el auto';
-  kb.style.left = E.commands.x + 'px';
-  kb.style.top = (E.commands.titleY + 12) + 'px';
-  kb.style.width = LAYOUT.panel.width + 'px';
-  kb.style.height = Math.max(0, E.cell_prompt.y - E.commands.titleY - 12) + 'px';
-  kb.innerHTML = '<span class="name">⌨ keyboard — занимает освободившееся место</span>';
-  stage.appendChild(kb);
+  for (const k in boxes) delete boxes[k];
+  kbBox = document.createElement('div');
+  kbBox.className = 'el auto';
+  kbBox.innerHTML = '<span class="name">⌨ keyboard — занимает освободившееся место</span>';
+  stage.appendChild(kbBox);
   for (const id in META) {
     if (META[id].auto) continue;
-    const e = E[id];
-    const [bx, by, bw, bh] = META[id].box(e);
     const d = document.createElement('div');
-    d.className = 'el' + (META[id].demo ? ' demo' : '') + (id === selected ? ' selected' : '');
+    d.className = 'el' + (META[id].demo ? ' demo' : '');
     d.dataset.id = id;
-    d.style.left = bx + 'px'; d.style.top = by + 'px';
-    d.style.width = bw + 'px'; d.style.height = bh + 'px';
     d.innerHTML = '<span class="name">' + META[id].label + '</span>';
-    d.addEventListener('pointerdown', ev => startDrag(ev, id));
+    d.addEventListener('pointerdown', ev => startMove(ev, id));
+    for (const edge of (META[id].rz || [])) {
+      const h = document.createElement('div');
+      h.className = 'rz rz-' + edge;
+      h.addEventListener('pointerdown', ev => startResize(ev, id, edge));
+      d.appendChild(h);
+    }
     stage.appendChild(d);
+    boxes[id] = d;
   }
-  renderProps();
+  syncBoxes();
 }
 
-// ---- перетаскивание ----
-let drag = null;
-const VKEYS = ['y', 'titleY', 'labelY'];
-function startDrag(ev, id) {
-  selected = id; render();
-  const e = LAYOUT.elements[id];
-  drag = {
-    id,
-    sx: ev.clientX, sy: ev.clientY,
-    ox: e.x,
-    v0: VKEYS.filter(k => k in e).map(k => [k, e[k]]),
-    top0: META[id].box(e)[1],
-  };
-  const box = ev.currentTarget;
-  box.setPointerCapture(ev.pointerId);
-  box.addEventListener('pointermove', onDrag);
-  box.addEventListener('pointerup', endDrag, { once: true });
+// ---- синхронизация: позиции боксов + поля свойств из LAYOUT ----
+function syncBoxes() {
+  const E = LAYOUT.elements;
+  kbBox.style.left = E.commands.x + 'px';
+  kbBox.style.top = (E.commands.titleY + 12) + 'px';
+  kbBox.style.width = LAYOUT.panel.width + 'px';
+  kbBox.style.height = Math.max(0, E.cell_prompt.y - E.commands.titleY - 12) + 'px';
+  for (const id in boxes) {
+    const [bx, by, bw, bh] = META[id].box(E[id]);
+    const d = boxes[id];
+    d.style.left = bx + 'px'; d.style.top = by + 'px';
+    d.style.width = bw + 'px'; d.style.height = bh + 'px';
+    d.classList.toggle('selected', id === selected);
+  }
+  syncPropInputs();
 }
+function syncPropInputs() {
+  if (!selected) return;
+  const e = LAYOUT.elements[selected];
+  const inputs = document.querySelectorAll('#fields input');
+  (META[selected].fields || []).forEach((f, i) => {
+    if (inputs[i] && document.activeElement !== inputs[i]) inputs[i].value = e[f];
+  });
+}
+
+// ---- общий каркас drag'а (узел не пересоздаётся — захват указателя жив) ----
+let drag = null;
+function beginDrag(ev, id, info) {
+  ev.preventDefault();
+  selected = id;
+  syncBoxes(); renderProps();
+  const node = ev.currentTarget;
+  node.setPointerCapture(ev.pointerId);
+  drag = Object.assign({ id, node, sx: ev.clientX, sy: ev.clientY, start: Object.assign({}, LAYOUT.elements[id]) }, info);
+  node.addEventListener('pointermove', onDrag);
+  node.addEventListener('pointerup', endDrag);
+  node.addEventListener('pointercancel', endDrag);
+}
+function endDrag() {
+  if (!drag) return;
+  const node = drag.node;
+  drag = null;
+  node.removeEventListener('pointermove', onDrag);
+  node.removeEventListener('pointerup', endDrag);
+  node.removeEventListener('pointercancel', endDrag);
+  saveLocal();
+  renderProps();
+}
+const VKEYS = ['y', 'titleY', 'labelY'];
+
+function startMove(ev, id) {
+  if (ev.target.classList.contains('rz')) return; // ручка — это resize
+  const e = LAYOUT.elements[id];
+  beginDrag(ev, id, {
+    mode: 'move',
+    ox: e.x,
+    top0: META[id].box(e)[1],
+    v0: VKEYS.filter(k => k in e).map(k => [k, e[k]]),
+  });
+}
+
+function startResize(ev, id, edge) {
+  const e = LAYOUT.elements[id];
+  const [bx, by, bw, bh] = META[id].box(e);
+  beginDrag(ev, id, { mode: 'resize', edge, top0: by, bottom0: by + bh, w0: e.w });
+}
+
 function onDrag(ev) {
   if (!drag) return;
   const scale = stage.getBoundingClientRect().width / 1280;
-  const nx = Math.round(drag.ox + (ev.clientX - drag.sx) / scale);
-  const nTop = Math.round(drag.top0 + (ev.clientY - drag.sy) / scale);
+  const dx = (ev.clientX - drag.sx) / scale;
+  const dy = (ev.clientY - drag.sy) / scale;
   const e = LAYOUT.elements[drag.id];
-  e.x = Math.max(0, Math.min(1240, nx));
-  const delta = nTop - drag.top0;
-  for (const [k, v] of drag.v0) e[k] = Math.max(0, Math.round(v + delta));
-  render();
-}
-function endDrag() {
-  drag = null;
-  saveLocal();
+  if (drag.mode === 'move') {
+    e.x = clamp(drag.ox + dx, 0, 1240);
+    const nTop = clamp(drag.top0 + dy, 0, 716);
+    const d = nTop - drag.top0;
+    for (const [k, v] of drag.v0) e[k] = clamp(v + d, 0, 716);
+  } else {
+    const [bx, by] = META[drag.id].box(e);
+    if (drag.edge.includes('e')) e.w = clamp(drag.w0 + dx, 80, 1280 - e.x);
+    if (drag.edge.includes('s')) {
+      const nBottom = clamp(drag.bottom0 + dy, by + 20, 718);
+      if (drag.id === 'commands') e.bottom = clamp(nBottom, e.titleY + 60, 718);
+      else if (drag.id === 'journal') e.h = clamp(nBottom - e.y, 30, 718 - e.y);
+      else if (drag.id === 'goals') e.stride = clamp((nBottom - e.y) / 4, 24, 60);
+      else if (drag.id === 'demo_controls') e.h = clamp(nBottom - e.y, 30, 64);
+      else if ('h' in e) e.h = clamp(nBottom - e.y, 20, 718 - e.y);
+    }
+    if (drag.edge.includes('n')) {
+      const nTop = clamp(drag.top0 + dy, 0, drag.bottom0 - 40);
+      if (drag.id === 'commands') e.titleY = clamp(nTop + 20, 120, e.bottom - 60);
+      else if (drag.id === 'journal') e.labelY = clamp(nTop + 16, 100, e.y);
+    }
+  }
+  syncBoxes();
 }
 
 // ---- панель свойств ----
@@ -213,7 +288,7 @@ function renderProps() {
     inp.type = 'number'; inp.value = e[f];
     inp.addEventListener('change', () => {
       e[f] = Number(inp.value) || 0;
-      saveLocal(); render();
+      saveLocal(); syncBoxes();
     });
     row.appendChild(lab); row.appendChild(inp);
     fields.appendChild(row);
@@ -222,7 +297,7 @@ function renderProps() {
 
 // ---- сохранение ----
 function saveLocal() {
-  try { localStorage.setItem('layout_draft', JSON.stringify(LAYOUT)); } catch (e) {}
+  try { localStorage.setItem('layout_draft', JSON.stringify(LAYOUT)); } catch (err) {}
 }
 function payload() {
   return JSON.stringify(LAYOUT, null, 2);
@@ -233,9 +308,9 @@ document.getElementById('save').addEventListener('click', async () => {
     const j = await r.json();
     if (j.ok) { say('✅ Сохранено в layout.json — обнови игру (F5)'); return; }
     throw new Error(j.error || 'сервер отказал');
-  } catch (e) {
+  } catch (err) {
     download();
-    say('Сервера нет (' + e.message + ') — файл скачан. Положи его в папку игры.', true);
+    say('Сервера нет (' + err.message + ') — файл скачан. Положи его в папку игры.', true);
   }
 });
 function download() {
@@ -249,7 +324,8 @@ document.getElementById('download').addEventListener('click', download);
 document.getElementById('reset').addEventListener('click', () => {
   LAYOUT = JSON.parse(JSON.stringify(DEFAULTS));
   selected = null;
-  saveLocal(); render(); say('Вернул дефолтную раскладку (не забудь сохранить)');
+  saveLocal(); buildBoxes(); renderProps();
+  say('Вернул дефолтную раскладку (не забудь сохранить)');
 });
 
 // ---- старт: подхватываем текущий layout.json, иначе черновик/дефолты ----
@@ -261,12 +337,12 @@ document.getElementById('reset').addEventListener('click', () => {
       LAYOUT = mergeDeep(JSON.parse(JSON.stringify(DEFAULTS)), j);
       say('Загружен текущий layout.json');
     }
-  } catch (e) { say('layout.json не найден — работаем с дефолтами'); }
+  } catch (err) { say('layout.json не найден — работаем с дефолтами'); }
   try {
     const draft = localStorage.getItem('layout_draft');
     if (draft) LAYOUT = mergeDeep(LAYOUT, JSON.parse(draft));
-  } catch (e) {}
-  render();
+  } catch (err) {}
+  buildBoxes();
 })();
 function mergeDeep(base, over) {
   for (const k in (over || {})) {
