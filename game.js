@@ -211,7 +211,7 @@ const LEVELS = [
     roadPrice: { 'щебень': 1 },
     goal: [ { flag: 'roads', n: 1, gen: 'связь', label: 'путь', text: 'соединить лесопилку и склад' } ],
     verbs: [
-      { cmd: 'дорога', icon: '🛤', hint: 'дорога — 1 щебень за новую клетку', match: o => !o, run: 'road' },
+      { cmd: 'дорога', icon: '🛤', hint: 'дорога — отметь старт, кликни конец; 1 щебень за клетку', match: o => !o, run: 'road' },
       { cmd: 'убрать', icon: '🧹', hint: 'убрать — снять клетку и вернуть щебень', match: o => o && o.kind === 'road', run: 'clear' },
     ],
   },
@@ -228,7 +228,7 @@ const LEVELS = [
       { flag: 'roads2', n: 1, gen: 'связь', label: 'путь к дому', text: 'лесопилка — дом' },
     ],
     verbs: [
-      { cmd: 'дорога', icon: '🛤', hint: 'дорога — 1 щебень за клетку', match: o => !o, run: 'road' },
+      { cmd: 'дорога', icon: '🛤', hint: 'дорога — отметь старт, кликни конец; 1 щебень за клетку', match: o => !o, run: 'road' },
       { cmd: 'убрать', icon: '🧹', hint: 'убрать — снять клетку и вернуть щебень', match: o => o && o.kind === 'road', run: 'clear' },
     ],
   },
@@ -331,7 +331,7 @@ const LEVELS = [
     verbs: [
       { cmd: 'дом', icon: '🏠', hint: 'дом — 6 булыжников, 4 бревна', match: o => !o, run: 'build', kind: 'house', price: { 'булыжники': 6, 'бревна': 4 } },
       { cmd: 'река', icon: '🌊', hint: 'река — отвести воду от моря', match: (o, st) => !o && st && touchesFlow(st.col, st.row), run: 'build', kind: 'water' },
-      { cmd: 'дорога', icon: '🛤', hint: 'дорога — 1 щебень за новую клетку', match: o => !o, run: 'road' },
+      { cmd: 'дорога', icon: '🛤', hint: 'дорога — отметь старт, кликни конец; 1 щебень за клетку', match: o => !o, run: 'road' },
       { cmd: 'мост', icon: '🌉', hint: 'мост — 2 бревна, только на реке', match: o => o && o.kind === 'water', run: 'build', kind: 'bridge', price: { 'бревна': 2 } },
       { cmd: 'убрать', icon: '🧹', hint: 'убрать — снять дорогу или мост и вернуть цену', match: o => o && (o.kind === 'road' || o.kind === 'bridge'), run: 'clear' },
     ],
@@ -440,7 +440,7 @@ const LEVELS = [
     verbs: [
       { cmd: 'дом', icon: '🏠', hint: 'дом — 6 булыжников, 4 бревна', match: o => !o, run: 'build', kind: 'house', price: { 'булыжники': 6, 'бревна': 4 } },
       { cmd: 'река', icon: '🌊', hint: 'река — отвести воду от моря', match: (o, st) => !o && st && touchesFlow(st.col, st.row), run: 'build', kind: 'water' },
-      { cmd: 'дорога', icon: '🛤', hint: 'дорога — 1 щебень за клетку', match: o => !o, run: 'road' },
+      { cmd: 'дорога', icon: '🛤', hint: 'дорога — отметь старт, кликни конец; 1 щебень за клетку', match: o => !o, run: 'road' },
       { cmd: 'мост', icon: '🌉', hint: 'мост — 2 бревна, только на реке', match: o => o && o.kind === 'water', run: 'build', kind: 'bridge', price: { 'бревна': 2 } },
       { cmd: 'убрать', icon: '🧹', hint: 'убрать — снять дорогу или мост', match: o => o && (o.kind === 'road' || o.kind === 'bridge'), run: 'clear' },
     ],
@@ -815,6 +815,7 @@ let now = 0, playT = 0, shake = 0;
 let hover = null;
 let selected = null;
 let selected2 = null;
+let roadFrom = null; // точка старта дороги: ждём клик по конечной точке
 let kbTarget = null;
 let kbClose = null;
 let kbRect = null; // зона клавиатуры-подсказки (для подсветки в обучении)
@@ -1163,7 +1164,7 @@ function reset() {
   stats = { typed: 0, ok: 0, err: 0, built: 0, stumpsMade: 0, stumpsCleared: 0, sold: {}, startT: performance.now() };
   for (const g of LVL.goal) if (g.res) resources[g.res] = 0;
   if (LVL.start) for (const k in LVL.start) resources[k] = LVL.start[k];
-  selected = null; selected2 = null; kbTarget = null;
+  selected = null; selected2 = null; roadFrom = null; kbTarget = null;
   orderIdx = 0; weedAcc = 0; playT = 0; stumpTold = false;
   streak = 0; hintUses = 0; bubbles = []; bubAcc = 0; wordIdx = 0;
   lockedPick = -1; poppedBubbles = 0;
@@ -1176,7 +1177,7 @@ function reset() {
   log('Цель уровня: ' + goalStr(), 'info');
   if (LVL.noStumps) log('Пни надо выкорчевать — иначе уровень не сдан', 'info');
   if (LVL.orders) log('Письмо на ' + LVL.orders[0], 'info');
-  else if (LVL.two) log('Кликни две клетки на одной линии, затем команда', 'info');
+  else if (LVL.two) log('Дорога: кликни клетку старта → напечатай «дорога» → кликни конец', 'info');
   else if (LVL.words) log('Напечатай слово: ' + currentWord(), 'info');
   else log('Кликни по ячейке, напечатай команду, Enter', 'info');
   if (LVL.noClick) log('Мышка отключена: клетку выбирай печатью, например «б3»', 'info');
@@ -1283,55 +1284,58 @@ function putPhrase(kind) {
   };
   return names[kind] || (kind + ' поставлен');
 }
-function segment(a, b) {
-  const cells = [];
-  if (a.col === b.col) {
-    const r0 = Math.min(a.row, b.row), r1 = Math.max(a.row, b.row);
-    for (let r = r0; r <= r1; r++) cells.push({ col: a.col, row: r });
-  } else {
-    const c0 = Math.min(a.col, b.col), c1 = Math.max(a.col, b.col);
-    for (let c = c0; c <= c1; c++) cells.push({ col: c, row: a.row });
-  }
-  return cells;
-}
-function buildRoad() {
-  if (!selected || !selected2) { failInput('Кликни две клетки на одной линии'); return false; }
-  if (selected.col === selected2.col && selected.row === selected2.row) { failInput('Кликни две разные клетки'); return false; }
-  if (selected.col !== selected2.col && selected.row !== selected2.row) {
-    failInput('Нужна прямая: одна буква или одно число'); return false;
-  }
-  const cells = segment(selected, selected2);
-  for (const p of cells) {
-    const o = objs[cellName(p.col, p.row)];
-    if (!o || o.kind === 'road') continue;
-    if (o.kind === 'water' || o.kind === 'sea' || o.kind === 'fished' || o.kind === 'bridge') {
-      failInput(o.kind === 'sea' ? 'На отрезке море — реку веди рядом' : 'На отрезке вода — поставь мост');
-      return false;
+// Дорога от точки старта К конечной: идём по направлению цели (сперва по
+// строке, затем по столбцу) и кладём клетки, пока хватает щебня; у здания
+// или воды дорога останавливается сама. Быстрый путь (автотесты/демо):
+// если конечная точка уже выбрана вторым кликом — строим сразу.
+function buildRoad(from, to) {
+  if (!from || !to) { failInput('Кликни клетку старта, команду «дорога», затем конечную точку'); return false; }
+  if (from.col === to.col && from.row === to.row) { failInput('Кликни конечную точку в другом месте'); return false; }
+  const st0 = objs[cellName(from.col, from.row)];
+  if (st0 && st0.kind !== 'road') { failInput('Точка старта должна быть пустой клеткой'); return false; }
+  const path = [{ col: from.col, row: from.row }];
+  let c = from.col, r = from.row;
+  while (c !== to.col) { c += Math.sign(to.col - c); path.push({ col: c, row: r }); }
+  while (r !== to.row) { r += Math.sign(to.row - r); path.push({ col: c, row: r }); }
+  const price = LVL.roadPrice || null;
+  let built = 0, outOf = false, blocked = null;
+  for (const p of path) {
+    const key = cellName(p.col, p.row);
+    const o = objs[key];
+    if (o && o.kind === 'road') continue; // уже дорога — бесплатно
+    if (o) { blocked = o; break; }        // здание или вода — стоп перед ним
+    if (price) {
+      if (deficits(price).length) { outOf = true; break; } // щебень кончился
+      for (const k in price) resources[k] -= price[k];
     }
-    failInput('Здесь стоит здание'); return false;
+    objs[key] = makeObj('road', p.col, p.row, { price: price ? Object.assign({}, price) : null });
+    flashes.push({ col: p.col, row: p.row, t: 0.35 });
+    built++;
   }
-  const fresh = cells.filter(p => !objs[cellName(p.col, p.row)]);
+  if (!built) {
+    failInput(blocked ? 'Здесь стоит здание'
+      : outOf ? 'Щебень кончился — не хватило даже на первую клетку'
+      : 'Нечего строить — дорога уже здесь');
+    return false;
+  }
+  stats.ok++; stats.built++;
   let spent = '';
-  if (LVL.roadPrice && fresh.length) {
-    const need = {};
-    for (const k in LVL.roadPrice) need[k] = LVL.roadPrice[k] * fresh.length;
-    const lack = deficits(need);
-    if (lack.length) { failInput('не хватает: ' + lack.join(', ')); return false; }
-    for (const k in need) resources[k] -= need[k];
+  if (price) {
     const parts = [];
-    for (const k in need) {
+    for (const k in price) {
+      const need = price[k] * built;
       const f = FORMS[k] || [k, k, k];
-      parts.push(ru(need[k], f[0], f[1], f[2]));
+      parts.push(ru(need, f[0], f[1], f[2]));
     }
     spent = ' · ' + parts.join(', ');
   }
-  for (const p of cells) {
-    const key = cellName(p.col, p.row);
-    if (!objs[key]) objs[key] = makeObj('road', p.col, p.row, { price: LVL.roadPrice ? Object.assign({}, LVL.roadPrice) : null });
-    flashes.push({ col: p.col, row: p.row, t: 0.35 });
-  }
-  stats.ok++; stats.built++;
-  log('🛤 Дорога ' + cellName(selected.col, selected.row) + ' → ' + cellName(selected2.col, selected2.row) + spent);
+  let tail = '';
+  if (blocked) {
+    tail = blocked.kind === 'water' || blocked.kind === 'sea' || blocked.kind === 'fished'
+      ? ' · дальше вода — нужен мост'
+      : ' · дошла до «' + String(KIND_LABEL[blocked.kind] || 'здания').toLowerCase() + '»';
+  } else if (outOf) tail = ' · щебень кончился — дорога не достроена';
+  log('🛤 Дорога: ' + ru(built, 'клетка', 'клетки', 'клеток') + spent + tail);
   sndPlant();
   selected2 = null;
   return true;
@@ -1457,6 +1461,7 @@ function submit() {
   if (!raw.trim()) return;
   stats.typed++;
   lastSubmit = { ok: false, msg: '' };
+  roadFrom = null; // любая новая команда отменяет ожидание конечной точки
   const p = parseInput(LVL.caseSensitive ? raw.trim() : raw.trim().toLowerCase().replace(/\s+/g, ' '));
   telemLen = p.rest.length;
   // «б3» без команды — просто выбрать клетку печатью
@@ -1498,7 +1503,17 @@ function submit() {
   const verb = LVL.verbs.find(v => v.cmd === word);
   if (!selected && verb.run !== 'trade') { failInput('Сначала выбери ячейку: кликни или напечатай адрес, например «б3»'); return; }
   if (verb.run === 'road') {
-    if (buildRoad()) { streak++; lastSubmit.ok = true; telem('cmd', { ok: true, len: telemLen }); kbTarget = null; }
+    if (!selected) { failInput('Кликни клетку старта дороги'); return; }
+    const from = { col: selected.col, row: selected.row };
+    if (!selected2) {
+      // новый flow: старт отмечен — ждём клик по конечной точке
+      roadFrom = from;
+      log('🧱 Точка старта дороги — ' + cellName(from.col, from.row) + '. Теперь кликни, где конец', 'info');
+      lastSubmit.ok = true; streak++;
+      telem('cmd', { ok: true, len: telemLen }); kbTarget = null;
+      return;
+    }
+    if (buildRoad(from, selected2)) { streak++; lastSubmit.ok = true; telem('cmd', { ok: true, len: telemLen }); kbTarget = null; }
     return;
   }
   if (verb.run === 'mail') {
@@ -3071,6 +3086,10 @@ function drawPanel() {
   if (LVL.two && selected && selected2) {
     title = 'ОТРЕЗОК ' + cellName(selected.col, selected.row) + ' → ' + cellName(selected2.col, selected2.row);
   }
+  if (roadFrom) {
+    title = '🧱 ДОРОГА: старт ' + cellName(roadFrom.col, roadFrom.row) + ' — кликни конечную точку';
+    list = [];
+  }
   ctx.fillStyle = '#9dbfa5'; ctx.font = 'bold 15px Segoe UI';
   ctx.fillText(title + (selected && list.length && !order ? ' (клик — клавиатура)' : ''), E.commands.x, cmdTop);
   // ---- низ панели: зоны жёстко закреплены (layout.json), элементы не наезжают ----
@@ -3116,6 +3135,7 @@ function drawPanel() {
       ctx.fillStyle = '#26a69a'; rr(E.commands.x, listTop, pw, 46, 10);
       ctx.fillStyle = '#eaffea'; ctx.font = '18px Segoe UI';
       let wait = selected ? 'ждём — команды появятся, когда ячейка освободится' : 'кликни по ячейке → по команде — появится клавиатура';
+      if (roadFrom) wait = 'кликни конечную точку дороги на поле — построится, пока хватает щебня';
       if (order && !selected) wait = 'кликни клетку из заказа и напечатай «письмо»';
       if (!selected && LVL.presets && LVL.presets.some(p => p.kind === 'stall')) wait = 'лавка в центре — кликни по ней, чтобы торговать; фрукты и пшеницу вырасти сам';
       if (!selected && LVL.presets && LVL.presets.some(p => p.kind === 'mountain')) wait = 'горы уже стоят на карте — кликни по горе';
@@ -3491,6 +3511,14 @@ canvas.addEventListener('click', e => {
   if (LVL.noClick) { log('Мышка отключена — печатай адрес клетки, например «б3»', 'warn'); return; }
   const c = Math.floor((p.x - GRID_OX) / CELL), r = Math.floor((p.y - GRID_OY) / CELL);
   if (c >= 0 && c < N && r >= 0 && r < N) {
+    if (roadFrom) {
+      // дорога ждёт конечную точку: этот клик и есть конец
+      const from = roadFrom;
+      roadFrom = null;
+      buildRoad(from, { col: c, row: r });
+      input.focus();
+      return;
+    }
     if (LVL.two) {
       if (!selected || (selected.col === c && selected.row === r)) selected = { col: c, row: r };
       else if (!selected2) selected2 = { col: c, row: r };
