@@ -15,7 +15,7 @@ const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
 const SINGULAR = {
   'дрова': 'дрова', 'бревна': 'бревно', 'булыжники': 'булыжник', 'щебень': 'щебень',
-  'пшеница': 'пшеница', 'сено': 'сено', 'рыба': 'рыба', 'хлеб': 'хлеб', 'овощи': 'овощ', 'яблоки': 'яблоко',
+  'пшеница': 'пшеница', 'сено': 'сено', 'рыба': 'рыба', 'хлеб': 'хлеб', 'овощи': 'овощ', 'фрукты': 'фрукт',
 };
 const FORMS = {
   дрова: ['дрова', 'дрова', 'дров'],
@@ -23,15 +23,16 @@ const FORMS = {
   булыжники: ['булыжник', 'булыжника', 'булыжников'],
   щебень: ['щебень', 'щебня', 'щебня'],
   пшеница: ['пшеница', 'пшеницы', 'пшеницы'],
-  яблоки: ['яблоко', 'яблока', 'яблок'],
+  фрукты: ['фрукт', 'фрукта', 'фруктов'],
   монеты: ['монета', 'монеты', 'монет'],
   лента: ['лента', 'ленты', 'лент'],
 };
 const KIND_LABEL = {
-  tree: 'ДЕРЕВО', stump: 'ПЕНЬ', mountain: 'ГОРА', field: 'ГРЯДКА',
+  tree: 'ЛЕС', stump: 'ПЕНЬ', mountain: 'ГОРА', field: 'ГРЯДКА',
   sea: 'МОРЕ', water: 'РЕКА', fished: 'ВОДА',
   bridge: 'МОСТ', road: 'ДОРОГА', house: 'ДОМ', shed: 'САРАЙ', oven: 'ПЕЧКА',
-  bed: 'ГРЯДКА', weed: 'СОРНЯК', sawmill: 'ЛЕСОПИЛКА', warehouse: 'СКЛАД', apple: 'ЯБЛОНЯ',
+  bed: 'ГРЯДКА', weed: 'СОРНЯК', sawmill: 'ЛЕСОПИЛКА', warehouse: 'СКЛАД', apple: 'САД',
+  stall: 'ЛАВКА',
 };
 
 function ru(n, one, few, many) {
@@ -58,15 +59,16 @@ const LEVELS = [
     name: 'ЛЕСОПИЛКА', size: 5, icon: '🌳', classic: true, objectKind: 'tree', noStumps: true, par: 150,
     tutorial: [
       { text: 'Наведи мышку на клетку а1 и нажми левую кнопку', cell: [0, 0], check: () => selected && selected.col === 0 && selected.row === 0 },
-      { text: 'Набери на клавиатуре слово: дерево', input: true, check: () => input.value.trim().toLowerCase() === 'дерево' },
-      { text: 'Нажми Enter — дерево посадится!', input: true, check: () => !!objs['а1'] },
+      { text: 'Нажми на карточку «лес» — появится клавиатура-подсказка', chip: 'лес', check: () => kbTarget === 'лес' || input.value.trim().toLowerCase() === 'лес' },
+      { text: 'Набери на клавиатуре слово: лес', input: true, check: () => input.value.trim().toLowerCase() === 'лес' },
+      { text: 'Нажми Enter — лес посадится!', input: true, check: () => !!objs['а1'] },
     ],
     goal: [ { res: 'дрова', n: 40, gen: 'дров' }, { res: 'бревна', n: 10, gen: 'брёвен' } ],
     verbs: [
-      { cmd: 'дерево', icon: '🌳', hint: 'дерево — посадить дерево (20 дров или 5 брёвен)', match: o => !o, run: 'build', kind: 'tree', stock: 20 },
+      { cmd: 'лес', icon: '🌳', hint: 'лес — посадить лес (20 дров или 5 брёвен)', match: o => !o, run: 'build', kind: 'tree', stock: 20 },
       { cmd: 'рубить дрова', icon: '🪓', hint: 'рубить дрова — топором: 20 дров', match: o => o && o.kind === 'tree' && !o.burning, run: 'work', worker: 'axe', time: 0.8, cost: 1, gain: 1, res: 'дрова' },
       { cmd: 'пилить бревна', icon: '🪚', hint: 'пилить бревна — пилой: 5 брёвен', match: o => o && o.kind === 'tree' && !o.burning, run: 'work', worker: 'saw', time: 2.0, cost: 4, gain: 1, res: 'бревна' },
-      { cmd: 'сжечь', icon: '🔥', hint: 'сжечь — сжечь дерево (ничего не даст!)', match: o => o && o.kind === 'tree' && !o.burning, run: 'burn' },
+      { cmd: 'сжечь', icon: '🔥', hint: 'сжечь — сжечь лес (ничего не даст!)', match: o => o && o.kind === 'tree' && !o.burning, run: 'burn' },
       { cmd: 'корчевать', icon: '🪓', hint: 'корчевать — убрать пень', match: o => o && o.kind === 'stump', run: 'clear' },
     ],
   },
@@ -74,13 +76,13 @@ const LEVELS = [
     name: 'ПРОСЕКА', size: 5, icon: '🪵', classic: true, objectKind: 'tree', noStumps: true, noClick: true, par: 180,
     tutorial: [
       { text: 'Мышка здесь отдыхает! Печатай адрес клетки: а1', input: true, check: () => input.value.trim().toLowerCase() === 'а1' },
-      { text: 'Здорово! Допиши команду через пробел: а1 дерево', input: true, check: () => input.value.trim().toLowerCase() === 'а1 дерево' },
+      { text: 'Здорово! Допиши команду через пробел: а1 лес', input: true, check: () => input.value.trim().toLowerCase() === 'а1 лес' },
       { text: 'Нажми Enter', input: true, check: () => !!objs['а1'] },
-      { text: 'Теперь сам: посади второе дерево — напечатай: а2 дерево', input: true, check: () => !!objs['а2'] },
+      { text: 'Теперь сам: посади второй лес — напечатай: а2 лес', input: true, check: () => !!objs['а2'] },
     ],
     goal: [ { res: 'дрова', n: 20, gen: 'дров' }, { res: 'бревна', n: 5, gen: 'брёвен' } ],
     verbs: [
-      { cmd: 'дерево', icon: '🌳', hint: 'дерево — посадить дерево', match: o => !o, run: 'build', kind: 'tree', stock: 20 },
+      { cmd: 'лес', icon: '🌳', hint: 'лес — посадить лес', match: o => !o, run: 'build', kind: 'tree', stock: 20 },
       { cmd: 'рубить дрова', icon: '🪓', hint: 'рубить дрова — топором', match: o => o && o.kind === 'tree' && !o.burning, run: 'work', worker: 'axe', time: 0.8, cost: 1, gain: 1, res: 'дрова' },
       { cmd: 'пилить бревна', icon: '🪚', hint: 'пилить бревна — пилой', match: o => o && o.kind === 'tree' && !o.burning, run: 'work', worker: 'saw', time: 2.0, cost: 4, gain: 1, res: 'бревна' },
       { cmd: 'корчевать', icon: '🪓', hint: 'корчевать — убрать пень', match: o => o && o.kind === 'stump', run: 'clear' },
@@ -103,10 +105,10 @@ const LEVELS = [
   },
   {
     name: 'САД', size: 7, icon: '🍎', par: 120,
-    goal: [ { res: 'яблоки', n: 16, gen: 'яблок', label: 'яблоки' } ],
+    goal: [ { res: 'фрукты', n: 16, gen: 'фруктов', label: 'фрукты' } ],
     verbs: [
-      { cmd: 'яблоня', icon: '🌳', hint: 'посадить яблоню — 8 яблок с дерева', match: o => !o, run: 'build', kind: 'apple', stock: 8, emoji: '🌳' },
-      { cmd: 'трясти яблоню', icon: '🍎', hint: 'собрать яблоки с яблони', match: o => o && o.kind === 'apple' && !o.burning, run: 'work', worker: 'basket', time: 1, cost: 1, gain: 1, res: 'яблоки' },
+      { cmd: 'сад', icon: '🌳', hint: 'сад — посадить фруктовое дерево (8 фруктов)', match: o => !o, run: 'build', kind: 'apple', stock: 8 },
+      { cmd: 'собрать фрукты', icon: '🍎', hint: 'собрать фрукты — пока не испортились', match: o => o && o.kind === 'apple' && gardenStage(o) === 'ripe' && !o.burning, run: 'work', worker: 'basket', time: 1, cost: 1, gain: 1, res: 'фрукты' },
     ],
   },
   {
@@ -116,25 +118,27 @@ const LEVELS = [
       { cmd: 'поле', icon: '🌾', hint: 'поле — посадить грядку (12 пшеницы или 4 сена)', match: o => !o, run: 'build', kind: 'field', stock: 12 },
       { cmd: 'жать пшеницу', icon: '🌾', hint: 'серпом с грядки — 12 пшеницы', match: o => o && o.kind === 'field' && fieldStage(o) === 'ripe', run: 'work', worker: 'sickle', time: 0.8, cost: 1, gain: 1, res: 'пшеница' },
       { cmd: 'косить сено', icon: '🌿', hint: 'косой с грядки — 4 сена', match: o => o && o.kind === 'field' && fieldStage(o) === 'ripe', run: 'work', worker: 'scythe', time: 1.5, cost: 3, gain: 1, res: 'сено' },
-      { cmd: 'убрать', icon: '🧹', hint: 'убрать — убрать сухую грядку', match: o => o && o.kind === 'field' && fieldStage(o) === 'dry', run: 'clear' },
     ],
   },
   {
-    name: 'ЯРМАРКА', size: 7, icon: '🎪', par: 120, requireAll: true,
-    start: { 'яблоки': 14, 'сено': 10 },
-    wallet: ['яблоки', 'сено', 'монеты', 'лента'],
+    // ЯРМАРКА: товар не выдан — выращиваем на месте (сад/поле — навыки с ур. 4 и 5),
+    // торгуем ТОЛЬКО у лавки в центре площади
+    name: 'ЯРМАРКА', size: 7, icon: '🎪', par: 140, requireAll: true,
+    presets: [ { col: 3, row: 3, kind: 'stall' } ],
+    wallet: ['фрукты', 'пшеница', 'монеты', 'лента'],
     goal: [ { res: 'монеты', n: 14, gen: 'монет', label: 'монета' }, { res: 'лента', n: 2, gen: 'лент', label: 'лента' } ],
     verbs: [
-      { cmd: 'продать яблоко', icon: '🍎', hint: 'продать яблоко — 1 яблоко → 2 монеты (можно «продать яблоко 3»)', match: () => true, run: 'trade', price: { 'яблоки': 1 }, gain: { 'монеты': 2 } },
-      { cmd: 'сбыть сено', icon: '🌿', hint: 'сбыть сено — 2 сена → 1 монета', match: () => true, run: 'trade', price: { 'сено': 2 }, gain: { 'монеты': 1 } },
-      { cmd: 'купить ленту', icon: '🎀', hint: 'купить ленту — 5 монет → 1 лента', match: () => true, run: 'trade', price: { 'монеты': 5 }, gain: { 'лента': 1 } },
+      { cmd: 'продать фрукт', icon: '🍎', hint: 'у лавки: 1 фрукт → 2 монеты (можно «продать фрукт 3»)', match: o => o && o.kind === 'stall', run: 'trade', price: { 'фрукты': 1 }, gain: { 'монеты': 2 } },
+      { cmd: 'продать пшеницу', icon: '🌾', hint: 'у лавки: 1 пшеница → 1 монета', match: o => o && o.kind === 'stall', run: 'trade', price: { 'пшеница': 1 }, gain: { 'монеты': 1 } },
+      { cmd: 'купить ленту', icon: '🎀', hint: 'у лавки: 5 монет → 1 лента', match: o => o && o.kind === 'stall', run: 'trade', price: { 'монеты': 5 }, gain: { 'лента': 1 } },
     ],
   },
   // ===== ГЛАВА 2 «ВОДА И ПУТИ» =====
   {
-    name: 'РЕКА', size: 12, icon: '🎣', par: 140,
+    name: 'РЕКА', size: 12, icon: '🎣', par: 170,
     sea: colDown(0, 0, 4), fishStock: 8,
-    start: { 'бревна': 8 },
+    // брёвна не выдаются: два леса на карте — пилим навыком с ур. 1–2
+    presets: [ { col: 10, row: 2, kind: 'tree', stock: 20 }, { col: 10, row: 5, kind: 'tree', stock: 20 } ],
     wallet: ['бревна'],
     goal: [ { res: 'рыба', n: 16, gen: 'рыб', label: 'рыба' }, { kind: 'bridge', n: 4, gen: 'моста', label: 'мост' } ],
     verbs: [
@@ -153,9 +157,10 @@ const LEVELS = [
     verbs: [],
   },
   {
-    name: 'ДОРОГИ', size: 12, icon: '🛤', two: true, par: 130,
-    presets: [ { col: 1, row: 2, kind: 'sawmill' }, { col: 9, row: 9, kind: 'warehouse' } ],
-    start: { 'щебень': 16 },
+    name: 'ДОРОГИ', size: 12, icon: '🛤', two: true, par: 170,
+    // щебень добываем сами: горы на карте (навык ур. 3); путь до склада — 14 клеток
+    presets: [ { col: 1, row: 2, kind: 'sawmill' }, { col: 9, row: 9, kind: 'warehouse' },
+      { col: 4, row: 3, kind: 'mountain', stock: 30 }, { col: 4, row: 6, kind: 'mountain', stock: 30 }, { col: 5, row: 1, kind: 'mountain', stock: 30 } ],
     wallet: ['щебень'],
     roadPrice: { 'щебень': 1 },
     goal: [ { flag: 'roads', n: 1, gen: 'связь', label: 'путь', text: 'соединить лесопилку и склад' } ],
@@ -165,9 +170,11 @@ const LEVELS = [
     ],
   },
   {
-    name: 'РАЗВИЛКА', size: 12, icon: '🔀', two: true, par: 180,
-    presets: [ { col: 1, row: 2, kind: 'sawmill' }, { col: 9, row: 9, kind: 'warehouse' }, { col: 10, row: 2, kind: 'house' } ],
-    start: { 'щебень': 24 },
+    name: 'РАЗВИЛКА', size: 12, icon: '🔀', two: true, par: 220,
+    // два пути — двойная добыча: четыре горы на щебень
+    presets: [ { col: 1, row: 2, kind: 'sawmill' }, { col: 9, row: 9, kind: 'warehouse' }, { col: 10, row: 2, kind: 'house' },
+      { col: 4, row: 6, kind: 'mountain', stock: 30 }, { col: 4, row: 8, kind: 'mountain', stock: 30 },
+      { col: 5, row: 1, kind: 'mountain', stock: 30 }, { col: 5, row: 5, kind: 'mountain', stock: 30 } ],
     wallet: ['щебень'],
     roadPrice: { 'щебень': 1 },
     goal: [
@@ -180,9 +187,10 @@ const LEVELS = [
     ],
   },
   {
-    name: 'МОСТЫ', size: 12, icon: '🌉', par: 160,
+    name: 'МОСТЫ', size: 12, icon: '🌉', par: 200,
     water: colDown(6, 1, 8),
-    start: { 'бревна': 14 },
+    // брёвна для мостов — из трёх лесов навыком «пилить бревна»
+    presets: [ { col: 0, row: 0, kind: 'tree', stock: 20 }, { col: 0, row: 2, kind: 'tree', stock: 20 }, { col: 0, row: 4, kind: 'tree', stock: 20 } ],
     wallet: ['бревна'],
     goal: [ { kind: 'bridge', n: 6, gen: 'мостов', label: 'мост' } ],
     verbs: [
@@ -200,8 +208,9 @@ const LEVELS = [
   },
   // ===== ГЛАВА 3 «СТРОЙКА И ЕДА» =====
   {
-    name: 'ДОМ', size: 9, icon: '🏠', par: 100,
-    start: { 'булыжники': 18, 'бревна': 12 },
+    name: 'ДОМ', size: 9, icon: '🏠', par: 150,
+    // стройматериалы свои: гора + два леса (навыки ур. 1–3)
+    presets: [ { col: 4, row: 1, kind: 'mountain', stock: 30 }, { col: 5, row: 4, kind: 'tree', stock: 20 }, { col: 5, row: 6, kind: 'tree', stock: 20 } ],
     wallet: ['булыжники', 'бревна'],
     goal: [ { kind: 'house', n: 2, gen: 'дома', label: 'дом' }, { kind: 'shed', n: 1, gen: 'сарай', label: 'сарай' } ],
     verbs: [
@@ -211,8 +220,9 @@ const LEVELS = [
     ],
   },
   {
-    name: 'ПЕКАРНЯ', size: 12, icon: '🍞', par: 190,
-    start: { 'пшеница': 20, 'дрова': 10, 'булыжники': 10 },
+    name: 'ПЕКАРНЯ', size: 12, icon: '🍞', par: 240,
+    // всё своё: гора (печки), лес (дрова), поля (пшеница) — навыки ур. 1–5
+    presets: [ { col: 4, row: 1, kind: 'mountain', stock: 30 }, { col: 5, row: 4, kind: 'tree', stock: 20 } ],
     wallet: ['пшеница', 'дрова', 'булыжники'],
     goal: [ { res: 'хлеб', n: 8, gen: 'хлеба', label: 'хлеб' } ],
     verbs: [
@@ -221,8 +231,9 @@ const LEVELS = [
     ],
   },
   {
-    name: 'СКЛАД', size: 9, icon: '📦', par: 150,
-    start: { 'булыжники': 13, 'бревна': 12 },
+    name: 'СКЛАД', size: 9, icon: '📦', par: 200,
+    // добыча навыками: гора + два леса; сараи поднимают лимит брёвен
+    presets: [ { col: 4, row: 1, kind: 'mountain', stock: 30 }, { col: 5, row: 4, kind: 'tree', stock: 20 }, { col: 5, row: 6, kind: 'tree', stock: 20 } ],
     wallet: ['булыжники', 'бревна'],
     cap: { 'бревна': 20 }, capRaise: 'shed', capAdd: 8,
     goal: [ { kind: 'shed', n: 2, gen: 'сарая', label: 'сарай' }, { kind: 'house', n: 1, gen: 'дом', label: 'дом' } ],
@@ -233,8 +244,9 @@ const LEVELS = [
     ],
   },
   {
-    name: 'КУЗНИЦА', size: 9, icon: '⚒️', par: 170,
-    start: { 'булыжники': 16, 'дрова': 10 },
+    name: 'КУЗНИЦА', size: 9, icon: '⚒️', par: 210,
+    // своя гора и лес кормят горны
+    presets: [ { col: 4, row: 1, kind: 'mountain', stock: 30 }, { col: 5, row: 4, kind: 'tree', stock: 20 } ],
     wallet: ['булыжники', 'дрова'],
     goal: [ { res: 'деталь', n: 6, gen: 'деталей', label: 'деталь' } ],
     verbs: [
@@ -262,9 +274,11 @@ const LEVELS = [
   },
   // ===== ГЛАВА 4 «ГОРОД И СЛОВА» =====
   {
-    name: 'ГОРОДОК', size: 12, icon: '🏘️', two: true, par: 200,
+    name: 'ГОРОДОК', size: 12, icon: '🏘️', two: true, par: 260,
     sea: [[0, 4], [0, 5], [0, 6]], fishStock: 0,
-    start: { 'булыжники': 6, 'бревна': 6, 'щебень': 4 },
+    // камень, щебень и брёвна — добыча навыками перед стройкой
+    presets: [ { col: 4, row: 1, kind: 'mountain', stock: 30 }, { col: 4, row: 3, kind: 'mountain', stock: 30 },
+      { col: 9, row: 2, kind: 'tree', stock: 20 }, { col: 9, row: 5, kind: 'tree', stock: 20 } ],
     wallet: ['булыжники', 'бревна', 'щебень'],
     roadPrice: { 'щебень': 1 },
     goal: [ { flag: 'town', n: 1, gen: 'город', label: 'город', text: 'дом — дорога — мост' } ],
@@ -277,8 +291,9 @@ const LEVELS = [
     ],
   },
   {
-    name: 'ПАРК', size: 9, icon: '🌸', par: 150,
-    start: { 'щебень': 14 },
+    name: 'ПАРК', size: 9, icon: '🌸', par: 200,
+    // щебень для декораций — из трёх гор
+    presets: [ { col: 4, row: 1, kind: 'mountain', stock: 30 }, { col: 4, row: 4, kind: 'mountain', stock: 30 }, { col: 4, row: 7, kind: 'mountain', stock: 30 } ],
     wallet: ['щебень'],
     goal: [
       { kind: 'fountain', n: 1, gen: 'фонтан', label: 'фонтан' },
@@ -294,8 +309,9 @@ const LEVELS = [
     ],
   },
   {
-    name: 'ЗООПАРК', size: 12, icon: '🦉', par: 200,
-    start: { 'булыжники': 24 },
+    name: 'ЗООПАРК', size: 12, icon: '🦉', par: 260,
+    // булыжники для клеток — из двух гор
+    presets: [ { col: 4, row: 1, kind: 'mountain', stock: 30 }, { col: 4, row: 4, kind: 'mountain', stock: 30 } ],
     wallet: ['булыжники'],
     words: ['ёжик', 'заяц', 'лиса', 'волк', 'сова', 'олень', 'рысь', 'тигр'],
     wordMode: { need: 'cage', res: 'животные' },
@@ -335,7 +351,8 @@ const LEVELS = [
     verbs: [
       { cmd: 'верстак', icon: '🪚', hint: 'верстак — 2 бревна', match: o => !o, run: 'build', kind: 'bench', price: { 'бревна': 2 }, emoji: '🪚' },
     ],
-    start: { 'бревна': 8 },
+    // брёвна — из леса навыком «пилить бревна»
+    presets: [ { col: 4, row: 1, kind: 'tree', stock: 20 } ],
     wallet: ['бревна'],
   },
   {
@@ -360,9 +377,13 @@ const LEVELS = [
     verbs: [],
   },
   {
-    name: 'БОЛЬШОЙ МОСТ', size: 12, icon: '🌇', two: true, par: 320,
+    name: 'БОЛЬШОЙ МОСТ', size: 12, icon: '🌇', two: true, par: 380,
     sea: colDown(0, 3, 7), fishStock: 0,
-    start: { 'булыжники': 22, 'бревна': 16, 'щебень': 12 },
+    // босс: вся накопленная добыча в деле — горы и леса на карте
+    presets: [
+      { col: 4, row: 1, kind: 'mountain', stock: 30 }, { col: 4, row: 4, kind: 'mountain', stock: 30 },
+      { col: 9, row: 1, kind: 'tree', stock: 20 }, { col: 9, row: 4, kind: 'tree', stock: 20 }, { col: 9, row: 7, kind: 'tree', stock: 20 },
+    ],
     wallet: ['булыжники', 'бревна', 'щебень'],
     roadPrice: { 'щебень': 1 },
     goal: [
@@ -379,8 +400,9 @@ const LEVELS = [
     ],
   },
   {
-    name: 'СВОЙ ГОРОД', size: 9, icon: '🏙', par: 140,
-    start: { 'щебень': 8 },
+    name: 'СВОЙ ГОРОД', size: 9, icon: '🏙', par: 180,
+    // финал: щебень для декораций добываем сами
+    presets: [ { col: 4, row: 1, kind: 'mountain', stock: 30 }, { col: 4, row: 4, kind: 'mountain', stock: 30 } ],
     wallet: ['щебень'],
     goal: [
       { kind: 'fountain', n: 1, gen: 'фонтан', label: 'фонтан' },
@@ -400,15 +422,15 @@ const LEVELS = [
 // Шаг: {cell:'а1', cmd:'слово'} | {cells:['б4','б10'], cmd:'дорога'}
 //      | {waitWork:true} | {wait:сек} | {sweep:true} — выполоть все сорняки.
 const SOLUTIONS = [
-  [ // 1: два дерева в топор, два в пилу; пни выкорчевать
-    { cell: 'а1', cmd: 'дерево' }, { cell: 'а2', cmd: 'дерево' }, { cell: 'а3', cmd: 'дерево' }, { cell: 'а4', cmd: 'дерево' },
+  [ // 1: два леса в топор, два в пилу; пни выкорчевать
+    { cell: 'а1', cmd: 'лес' }, { cell: 'а2', cmd: 'лес' }, { cell: 'а3', cmd: 'лес' }, { cell: 'а4', cmd: 'лес' },
     { cell: 'а1', cmd: 'рубить дрова' }, { cell: 'а2', cmd: 'рубить дрова' },
     { cell: 'а3', cmd: 'пилить бревна' }, { cell: 'а4', cmd: 'пилить бревна' },
     { waitWork: true },
     { cell: 'а1', cmd: 'корчевать' }, { cell: 'а2', cmd: 'корчевать' }, { cell: 'а3', cmd: 'корчевать' }, { cell: 'а4', cmd: 'корчевать' },
   ],
-  [ // 2: без мышки — адрес печатью: «а1 дерево»
-    { cmd: 'а1 дерево' }, { cmd: 'а2 дерево' }, { cmd: 'а3 дерево' },
+  [ // 2: без мышки — адрес печатью: «а1 лес»
+    { cmd: 'а1 лес' }, { cmd: 'а2 лес' }, { cmd: 'а3 лес' },
     { cmd: 'а1 рубить дрова' }, { cmd: 'а2 рубить дрова' }, { cmd: 'а3 пилить бревна' },
     { waitWork: true },
     { cmd: 'а1 корчевать' }, { cmd: 'а2 корчевать' }, { cmd: 'а3 корчевать' },
@@ -417,26 +439,33 @@ const SOLUTIONS = [
     { cell: 'в3', cmd: 'колоть булыжник' }, { cell: 'е2', cmd: 'колоть булыжник' }, { cell: 'ж6', cmd: 'дробить щебень' },
     { waitWork: true },
   ],
-  [ // 4: две яблони, собрать по 8 яблок
-    { cell: 'а1', cmd: 'яблоня' }, { cell: 'а2', cmd: 'яблоня' },
-    { cell: 'а1', cmd: 'трясти яблоню' }, { waitWork: true },
-    { cell: 'а2', cmd: 'трясти яблоню' }, { waitWork: true },
+  [ // 4: два сада; фрукты портятся — успей собрать
+    { cell: 'а1', cmd: 'сад' }, { cell: 'а2', cmd: 'сад' },
+    { wait: 6.6 }, // GARDEN_GROW_T + запас
+    { cell: 'а1', cmd: 'собрать фрукты' }, { waitWork: true },
+    { cell: 'а2', cmd: 'собрать фрукты' }, { waitWork: true },
   ],
-  [ // 5: четыре грядки; после роста — две под серп, две под косу
-    { cell: 'а1', cmd: 'поле' }, { cell: 'а2', cmd: 'поле' }, { cell: 'а3', cmd: 'поле' }, { cell: 'а4', cmd: 'поле' },
-    { wait: 5.4 },
-    { cell: 'а1', cmd: 'жать пшеницу' }, { cell: 'а2', cmd: 'жать пшеницу' }, { cell: 'а3', cmd: 'косить сено' }, { cell: 'а4', cmd: 'косить сено' },
+  [ // 5: шесть грядок (3+3) — урожай тает со временем, спешка сохраняет его
+    { cell: 'а1', cmd: 'поле' }, { cell: 'а2', cmd: 'поле' }, { cell: 'а3', cmd: 'поле' },
+    { cell: 'а4', cmd: 'поле' }, { cell: 'а5', cmd: 'поле' }, { cell: 'а6', cmd: 'поле' },
+    { wait: 6.6 }, // FIELD_GROW_T + запас: все грядки успевают созреть
+    { cell: 'а1', cmd: 'жать пшеницу' }, { cell: 'а2', cmd: 'жать пшеницу' }, { cell: 'а3', cmd: 'жать пшеницу' },
+    { cell: 'а4', cmd: 'косить сено' }, { cell: 'а5', cmd: 'косить сено' }, { cell: 'а6', cmd: 'косить сено' },
     { waitWork: true },
   ],
-  [ // 6: ярмарка — продать с числом и без
-    { cell: 'а1', cmd: 'продать яблоко 3' },
-    { cell: 'а1', cmd: 'продать яблоко 3' },
-    { cell: 'а1', cmd: 'продать яблоко 3' },
-    { cell: 'а1', cmd: 'продать яблоко 3' },
-    { cell: 'а1', cmd: 'купить ленту' },
-    { cell: 'а1', cmd: 'купить ленту' },
+  [ // 6: ярмарка — вырасти сам (сад + поле — навыки с ур. 4–5) и продай у лавки (г4)
+    { cell: 'а1', cmd: 'сад' }, { cell: 'б1', cmd: 'поле' },
+    { wait: 6.6 }, // фрукты и пшеница зреют
+    { cell: 'а1', cmd: 'собрать фрукты' }, { cell: 'б1', cmd: 'жать пшеницу' },
+    { waitWork: true },
+    { cell: 'г4', cmd: 'продать фрукт 4' }, // 8 фруктов → 16 монет
+    { cell: 'г4', cmd: 'продать фрукт 4' },
+    { cell: 'г4', cmd: 'продать пшеницу 8' }, // +8 монет → 24
+    { cell: 'г4', cmd: 'купить ленту' }, { cell: 'г4', cmd: 'купить ленту' }, // −10 → 14 монет
   ],
-  [ // 7: две клетки моря под удочку; четыре реки с мостами
+  [ // 7: брёвна из леса (навык) → удочка в море, реки и мосты
+    { cell: 'й3', cmd: 'пилить бревна' }, { cell: 'й6', cmd: 'пилить бревна' },
+    { waitWork: true },
     { cell: 'а1', cmd: 'удить' }, { cell: 'а2', cmd: 'удить' },
     { cell: 'б1', cmd: 'река' }, { cell: 'б1', cmd: 'мост' },
     { cell: 'б2', cmd: 'река' }, { cell: 'б2', cmd: 'мост' },
@@ -448,34 +477,52 @@ const SOLUTIONS = [
     { cell: 'а1', cmd: 'окунь' }, { cell: 'а2', cmd: 'карась' }, { cell: 'а3', cmd: 'щука' }, { cell: 'а4', cmd: 'ёрш' },
     { cell: 'а5', cmd: 'лещ' }, { cell: 'б2', cmd: 'сом' }, { cell: 'б3', cmd: 'налим' }, { cell: 'б4', cmd: 'судак' },
   ],
-  [ // 9: два отрезка с поворотом на б10
+  [ // 9: щебень из трёх гор (навык) → дороги к складу
+    { cell: 'д4', cmd: 'дробить щебень' }, { cell: 'д7', cmd: 'дробить щебень' }, { cell: 'е2', cmd: 'дробить щебень' },
+    { waitWork: true },
     { cells: ['б4', 'б10'], cmd: 'дорога' },
     { cells: ['в10', 'з10'], cmd: 'дорога' },
   ],
-  [ // 10: связать лесопилку со складом и с домом
+  [ // 10: четыре горы на щебень → пути к складу и дому
+    { cell: 'д7', cmd: 'дробить щебень' }, { cell: 'д9', cmd: 'дробить щебень' },
+    { cell: 'е2', cmd: 'дробить щебень' }, { cell: 'е6', cmd: 'дробить щебень' },
+    { waitWork: true },
     { cells: ['б4', 'б10'], cmd: 'дорога' },
     { cells: ['в10', 'з10'], cmd: 'дорога' },
     { cells: ['б4', 'и4'], cmd: 'дорога' },
     { cells: ['и4', 'й4'], cmd: 'дорога' },
   ],
-  [ // 11: шесть мостов через реку (колонка ё)
+  [ // 11: брёвна из трёх лесов → шесть мостов через реку (колонка ё)
+    { cell: 'а1', cmd: 'пилить бревна' }, { cell: 'а3', cmd: 'пилить бревна' }, { cell: 'а5', cmd: 'пилить бревна' },
+    { waitWork: true },
     { cell: 'ё2', cmd: 'мост' }, { cell: 'ё3', cmd: 'мост' }, { cell: 'ё4', cmd: 'мост' },
     { cell: 'ё5', cmd: 'мост' }, { cell: 'ё6', cmd: 'мост' }, { cell: 'ё7', cmd: 'мост' },
   ],
   [ // 12: почта — полный адрес в команде
     ...['в3', 'е7', 'й11', 'м4', 'о12', 'а16', 'к14', 'д2'].map(a => ({ cell: null, cmd: 'письмо ' + a })),
   ],
-  [ // 13: дом ×2 + сарай
+  [ // 13: добыть булыжники и брёвна (навыки) → дом ×2 + сарай
+    { cell: 'д2', cmd: 'колоть булыжник' }, { waitWork: true },
+    { cell: 'е5', cmd: 'пилить бревна' }, { cell: 'е7', cmd: 'пилить бревна' }, { waitWork: true },
     { cell: 'а1', cmd: 'дом' }, { cell: 'а2', cmd: 'дом' }, { cell: 'а3', cmd: 'сарай' },
   ],
-  [ // 14: пекарня — две печки, восемь хлебов (с запасом ресурсов)
-    { cell: 'а1', cmd: 'печка' }, { cell: 'а2', cmd: 'печка' },
-    ...Array.from({ length: 8 }, (_, i) => ({ cell: i % 2 ? 'а2' : 'а1', cmd: 'испечь', waitWork: true })),
+  [ // 14: пекарня — всё своё: гора, лес и два поля кормят две печки
+    { cell: 'д2', cmd: 'колоть булыжник' }, { waitWork: true },
+    { cell: 'е5', cmd: 'рубить дрова' }, { waitWork: true },
+    { cell: 'а1', cmd: 'поле' }, { cell: 'а2', cmd: 'поле' },
+    { wait: 6.6 },
+    { cell: 'а1', cmd: 'жать пшеницу' }, { cell: 'а2', cmd: 'жать пшеницу' }, { waitWork: true },
+    { cell: 'б1', cmd: 'печка' }, { cell: 'б2', cmd: 'печка' },
+    ...Array.from({ length: 8 }, (_, i) => ({ cell: i % 2 ? 'б2' : 'б1', cmd: 'испечь', waitWork: true })),
   ],
-  [ // 15: склад — 2 сарая поднимают лимит, затем дом
+  [ // 15: склад — добыча навыками, 2 сарая поднимают лимит, затем дом
+    { cell: 'д2', cmd: 'колоть булыжник' }, { waitWork: true },
+    { cell: 'е5', cmd: 'пилить бревна' }, { cell: 'е7', cmd: 'пилить бревна' }, { waitWork: true },
     { cell: 'а1', cmd: 'сарай' }, { cell: 'а2', cmd: 'сарай' }, { cell: 'а3', cmd: 'дом' },
   ],
-  [ // 16: кузница — два горна, кузнецы куют пока есть материал
+  [ // 16: кузница — своя гора и лес кормят два горна
+    { cell: 'д2', cmd: 'колоть булыжник' }, { waitWork: true },
+    { cell: 'е5', cmd: 'рубить дрова' }, { waitWork: true },
     { cell: 'а1', cmd: 'горн' }, { cell: 'а2', cmd: 'горн' },
     { cell: 'а1', cmd: 'сковать' }, { cell: 'а2', cmd: 'сковать' },
     { waitWork: true },
@@ -491,16 +538,21 @@ const SOLUTIONS = [
     { cell: 'а3', cmd: 'собрать', sweep: true }, { waitWork: true },
     { cell: 'а5', cmd: 'собрать', sweep: true }, { waitWork: true },
   ],
-  [ // 19: городок
+  [ // 19: городок — камень, щебень и брёвна добываем перед стройкой
+    { cell: 'д2', cmd: 'колоть булыжник' }, { cell: 'д4', cmd: 'дробить щебень' }, { waitWork: true },
+    { cell: 'и3', cmd: 'пилить бревна' }, { cell: 'и6', cmd: 'пилить бревна' }, { waitWork: true },
     { cell: 'б5', cmd: 'река' }, { cell: 'б5', cmd: 'мост' }, { cell: 'г5', cmd: 'дом' },
     { cells: ['в4', 'в5'], cmd: 'дорога' },
   ],
-  [ // 20: парк
+  [ // 20: парк — щебень из трёх гор, потом декорации
+    { cell: 'д2', cmd: 'дробить щебень' }, { cell: 'д5', cmd: 'дробить щебень' }, { cell: 'д8', cmd: 'дробить щебень' },
+    { waitWork: true },
     { cell: 'а1', cmd: 'клумба' }, { cell: 'а2', cmd: 'клумба' },
     { cell: 'б1', cmd: 'ёлка' }, { cell: 'б2', cmd: 'ёлка' },
     { cell: 'в1', cmd: 'качели' }, { cell: 'в2', cmd: 'фонтан' },
   ],
-  [ // 21: зоопарк — 6 клеток, слова животных
+  [ // 21: зоопарк — булыжники из двух гор, 6 клеток, слова животных
+    { cell: 'д2', cmd: 'колоть булыжник' }, { cell: 'д5', cmd: 'колоть булыжник' }, { waitWork: true },
     { cell: 'а1', cmd: 'клетка' }, { cell: 'а2', cmd: 'клетка' }, { cell: 'а3', cmd: 'клетка' },
     { cell: 'а4', cmd: 'клетка' }, { cell: 'а5', cmd: 'клетка' }, { cell: 'а6', cmd: 'клетка' },
     { cell: 'а1', cmd: 'ёжик' }, { cell: 'а2', cmd: 'заяц' }, { cell: 'а3', cmd: 'лиса' },
@@ -524,7 +576,8 @@ const SOLUTIONS = [
     { cell: 'б1', cmd: 'флаг' }, { cell: 'б2', cmd: 'флаг' }, { cell: 'б3', cmd: 'флаг' }, { cell: 'б4', cmd: 'салют' },
     { cell: 'в1', cmd: 'флаг' }, { cell: 'в2', cmd: 'флаг' }, { cell: 'в3', cmd: 'флаг' }, { cell: 'в4', cmd: 'салют' },
   ],
-  [ // 25: мастерская — верстаки и 10 слов подряд
+  [ // 25: мастерская — брёвна из леса, верстаки и 10 слов
+    { cell: 'д2', cmd: 'пилить бревна' }, { waitWork: true },
     { cell: 'а1', cmd: 'верстак' }, { cell: 'а2', cmd: 'верстак' },
     { cell: 'а1', cmd: 'мир' }, { cell: 'а1', cmd: 'дом' }, { cell: 'а1', cmd: 'кот' }, { cell: 'а1', cmd: 'сыр' }, { cell: 'а1', cmd: 'чай' },
     { cell: 'а2', cmd: 'мак' }, { cell: 'а2', cmd: 'пар' }, { cell: 'а2', cmd: 'год' }, { cell: 'а2', cmd: 'юла' }, { cell: 'а2', cmd: 'ёжик' },
@@ -540,7 +593,9 @@ const SOLUTIONS = [
   [ // 28: скорый поезд — 12 слов
     { rain: 12 },
   ],
-  [ // 29: большой мост — босс
+  [ // 29: большой мост — босс: вся накопленная добыча в деле
+    { cell: 'д2', cmd: 'колоть булыжник' }, { cell: 'д5', cmd: 'дробить щебень' }, { waitWork: true },
+    { cell: 'и2', cmd: 'пилить бревна' }, { cell: 'и5', cmd: 'пилить бревна' }, { cell: 'и8', cmd: 'пилить бревна' }, { waitWork: true },
     { cell: 'б4', cmd: 'река' }, { cell: 'б4', cmd: 'мост' },
     { cell: 'б5', cmd: 'река' }, { cell: 'б5', cmd: 'мост' },
     { cell: 'б6', cmd: 'река' }, { cell: 'б6', cmd: 'мост' },
@@ -548,7 +603,8 @@ const SOLUTIONS = [
     { cells: ['в4', 'в5'], cmd: 'дорога' },
     { cells: ['в5', 'в6'], cmd: 'дорога' },
   ],
-  [ // 30: свой город — декорации
+  [ // 30: свой город — щебень из гор, потом декорации
+    { cell: 'д2', cmd: 'дробить щебень' }, { cell: 'д5', cmd: 'дробить щебень' }, { waitWork: true },
     { cell: 'а1', cmd: 'клумба' }, { cell: 'а2', cmd: 'клумба' },
     { cell: 'б1', cmd: 'ёлка' }, { cell: 'б2', cmd: 'фонтан' },
   ],
@@ -556,15 +612,23 @@ const SOLUTIONS = [
 
 let levelIdx = 0, LVL = LEVELS[0];
 let N = 5, CELL = 120, SF = 6, GS = 600, GRID_OX = 64, GRID_OY = 106, labelFont = 41;
+// ДЕМО показывает кампанию линейно: для наследования навыков считает
+// все предыдущие уровни пройденными (личный сейв игрока тут ни при чём)
+let skillDone = null;
+function demoSkillOverride(i) {
+  skillDone = {};
+  for (let j = 0; j < i; j++) skillDone[j] = true;
+}
 
 function applyLevel(i) {
   levelIdx = i;
   const base = LEVELS[i];
   LVL = Object.assign({}, base);
   // Скиллы: команды пройденных уровней остаются у игрока навсегда —
-  // «открыл сажать деревья» значит можно сажать везде дальше.
+  // «открыл сажать лес» значит можно сажать везде дальше.
   const extra = [];
-  for (const m in SAVE.done) {
+  const doneSet = skillDone || SAVE.done;
+  for (const m in doneSet) {
     const src = LEVELS[m];
     if (!src || +m === i) continue;
     for (const v of (src.verbs || [])) {
@@ -590,7 +654,15 @@ function tutStart() {
   if (LVL.tutorial && !(SAVE.tutDone || {})[levelIdx]) tut = LVL.tutorial;
 }
 function tutRect(step) {
-  if (step.input) return { x: 730, y: 616, w: 496, h: 54 };
+  if (step.chip) { // карточка команды: клик открывает клавиатуру-подсказку
+    const c = chips.find(ch => ch.cmd === step.chip);
+    if (c) return { x: c.x, y: c.y, w: c.w, h: c.h };
+  }
+  if (step.input) {
+    // клавиатура открыта — подсвечиваем её вместе со строкой ввода
+    if (kbTarget && kbRect) return { x: 730, y: kbRect.y, w: 530, h: 670 - kbRect.y };
+    return { x: 730, y: 616, w: 496, h: 54 };
+  }
   if (step.cell) return { x: cellX(step.cell[0]), y: cellY(step.cell[1]), w: CELL, h: CELL };
   return { x: 590, y: 340, w: 100, h: 100 };
 }
@@ -602,6 +674,7 @@ function tutTick() {
     beep(700, 0.1, 'triangle', 0.1);
     if (tutIdx >= tut.length) {
       tut = null;
+      if (demo && demo.on) return; // ДЕМО: обучение только показываем, сейв не трогаем
       SAVE.tutDone = SAVE.tutDone || {};
       SAVE.tutDone[levelIdx] = true;
       persistSave();
@@ -640,12 +713,14 @@ function drawTutorial() {
   const bw = tw + 36, bh = 56;
   let bx = Math.min(W - bw - 16, Math.max(16, r.x + r.w / 2 - bw / 2));
   let by = r.y - bh - 26 < 10 ? r.y + r.h + 22 : r.y - bh - 22;
+  // в демо слева сверху висит баннер — подсказку прячем под клетку, а не под баннер
+  if (demo && demo.on && bx < 556 && by < 122) by = r.y + r.h + 22;
   ctx.fillStyle = '#ffe066'; rr(bx, by, bw, bh, 14);
   ctx.fillStyle = '#17382a'; ctx.textAlign = 'center';
   ctx.fillText(step.text, bx + bw / 2, by + 35);
   ctx.textAlign = 'left';
   ctx.fillStyle = '#9dbfa5'; ctx.font = '14px Segoe UI'; ctx.textAlign = 'center';
-  ctx.fillText('Esc — пропустить обучение', W / 2, H - 12);
+  ctx.fillText(demo && demo.on ? '▶ ДЕМО: обучение показано как для игрока · Esc — выход' : 'Esc — пропустить обучение', W / 2, H - 12);
   ctx.textAlign = 'left';
 }
 
@@ -693,6 +768,7 @@ let selected = null;
 let selected2 = null;
 let kbTarget = null;
 let kbClose = null;
+let kbRect = null; // зона клавиатуры-подсказки (для подсветки в обучении)
 let winTime = 0;
 let menuCards = [];
 let menuBtn = null;
@@ -704,6 +780,7 @@ let lastSubmit = { ok: false, msg: '' };
 let telemLen = 0;
 let streak = 0, hintUses = 0; // серия без ошибок / открытий подсказки-клавиатуры
 let bubbles = [], bubAcc = 0; // бонус-пузыри со словами (занятость в паузах)
+const BUBBLE_LIFE = 9; // секунд живёт пузырь; шкала внутри показывает остаток
 const BUBBLE_WORDS = ['мир', 'дом', 'кот', 'сыр', 'чай', 'мак', 'пар', 'год', 'юла', 'ёжик', 'ива', 'хлеб', 'звук', 'флаг', 'щавель', 'экран', 'юг', 'яма', 'цифра', 'мышь', 'ольха', 'ствол'];
 function weakLetters() {
   const arr = Object.keys(SAVE.keys).map(k => [k, SAVE.keys[k]]);
@@ -719,7 +796,7 @@ function pickBubble() {
 function spawnBubble() {
   if (bubbles.length >= 2) return;
   const col = Math.floor(Math.random() * N), row = Math.floor(Math.random() * N);
-  bubbles.push({ word: pickBubble(), x: cellX(col) + CELL / 2, y: cellY(row), life: 9, col: '#80d8ff' });
+  bubbles.push({ word: pickBubble(), x: cellX(col) + CELL / 2, y: cellY(row), life: BUBBLE_LIFE, max: BUBBLE_LIFE, col: '#80d8ff' });
 }
 
 // ---------- сохранение и телеметрия ----------
@@ -802,13 +879,13 @@ function currentWord() {
   if (LVL.words) return LVL.words[wordIdx % LVL.words.length];
   return null;
 }
-// разбор ввода: «б3» (адрес) | «б3 дерево» (адрес+команда) | «письмо п12» | «продать 3»
+// разбор ввода: «б3» (адрес) | «б3 лес» (адрес+команда) | «письмо п12» | «продать 3»
 function parseInput(raw) {
   const m = raw.match(/^([а-яё])(\d{1,2})(?:\s+(.+))?$/);
   if (m) return { addr: m[1] + m[2], rest: (m[3] || '').trim() };
   const m2 = raw.match(/^(.+?)\s+([а-яё]\d{1,2})$/); // «письмо п12»
   if (m2) return { addr: m2[2], rest: m2[1].trim() };
-  const m3 = raw.match(/^(.+?)\s+(\d{1,3})$/); // «продать яблоко 3»
+  const m3 = raw.match(/^(.+?)\s+(\d{1,3})$/); // «продать фрукт 3»
   if (m3) return { num: parseInt(m3[2], 10), rest: m3[1].trim() };
   return { addr: null, rest: raw.trim() };
 }
@@ -879,13 +956,48 @@ let lastWinStars = 0;
 function makeObj(kind, col, row, extra) {
   return Object.assign({ kind, col, row, stock: 0, max: 0, born: now, t0: playT, burning: null, boom: false, held: false, price: null }, extra || {});
 }
+// Жизнь грядки: FIELD_GROW_T растёт → спелая навсегда. Уют без спешки:
+// механика порчи перенесена на сады — грядка, созрев, просто ждёт сбора.
+const FIELD_GROW_T = 6;
 function fieldStage(o) {
   if (!o || o.kind !== 'field') return '';
   if (o.held) return 'ripe';
+  return (playT - o.t0) < FIELD_GROW_T ? 'grow' : 'ripe';
+}
+function fieldLeft(o) { // секунд до спелости — для подсказки ребёнку
   const age = playT - o.t0;
-  if (age < 5) return 'grow';
-  if (age < 17) return 'ripe';
-  return 'dry';
+  return fieldStage(o) === 'grow' ? Math.max(0, Math.ceil(FIELD_GROW_T - age)) : 0;
+}
+
+// Жизнь сада: GARDEN_GROW_T растёт → фрукты зреют и ПОРТЯТСЯ со временем.
+// GARDEN_GRACE — доля окна, пока все фрукты целы; дальше портятся один за другим
+// (последний доживает до конца окна). Спешишь — больше соберёшь.
+const GARDEN_GROW_T = 6, GARDEN_RIPE_T = 45, GARDEN_GRACE = 0.6;
+function gardenStage(o) {
+  if (!o || o.kind !== 'apple') return '';
+  if (o.held) return 'ripe';
+  const age = playT - o.t0;
+  if (age < GARDEN_GROW_T) return 'grow';
+  if (age < GARDEN_RIPE_T) return 'ripe';
+  return 'gone';
+}
+function gardenLeft(o) { // секунд до порчи — для подсказки ребёнку
+  const age = playT - o.t0;
+  const s = gardenStage(o);
+  if (s === 'grow') return Math.max(0, Math.ceil(GARDEN_GROW_T - age));
+  if (s === 'ripe') return Math.max(0, Math.ceil(GARDEN_RIPE_T - age));
+  return 0;
+}
+// доля целых фруктов (1 — все целы); после льготного окна тает линейно до 1/8
+function gardenYieldFrac(o) {
+  const p = Math.max(0, 1 - ((playT - o.t0) - GARDEN_GROW_T) / (GARDEN_RIPE_T - GARDEN_GROW_T));
+  return p >= GARDEN_GRACE ? 1 : Math.max(0.125, p / GARDEN_GRACE);
+}
+// фрукты портятся со временем (кроме случая, когда их уже собирают)
+function clampGardenStock(o) {
+  if (o.kind !== 'apple' || o.held) return;
+  if (gardenStage(o) !== 'ripe') return;
+  o.stock = Math.min(o.stock, Math.max(1, Math.ceil((o.max || 1) * gardenYieldFrac(o))));
 }
 function touchesFlow(col, row) {
   for (const n of neighbors(col, row)) {
@@ -1075,11 +1187,17 @@ function payProblem(pay) {
   return lack.length ? 'не хватает: ' + lack.join(', ') : '';
 }
 function whyNot(word, st, o) {
+  if ((word === 'продать фрукт' || word === 'продать пшеницу' || word === 'купить ленту') && (!o || o.kind !== 'stall'))
+    return 'Торговать можно только у лавки — она в центре площади';
   if (o && o.kind === 'field') {
     const s = fieldStage(o);
     if (s === 'grow') return 'Грядка ' + st.key + ' ещё растёт — подожди';
-    if (s === 'dry') return 'Грядка ' + st.key + ' сухая — команда убрать';
     return 'Грядка ' + st.key + ' спелая — жать пшеницу или косить сено';
+  }
+  if (o && o.kind === 'apple') {
+    const s = gardenStage(o);
+    if (s === 'grow') return 'Сад ' + st.key + ' ещё растёт — подожди, пока созреют фрукты';
+    return 'Сад ' + st.key + ' спелый — собрать фрукты, пока не испортились';
   }
   if (o && o.kind === 'stump') return 'Здесь пень — команда корчевать';
   if (o && o.kind === 'sea') {
@@ -1099,19 +1217,19 @@ function whyNot(word, st, o) {
   if (o && o.kind === 'bridge') return 'Здесь уже стоит мост';
   if (o && o.kind === 'weed') return 'Это сорняк — команда полоть';
   if (o && o.kind === 'oven') return 'Здесь печка — команда испечь';
-  if (LVL.classic && !o) return 'В ячейке ' + st.key + ' нет ' + (LVL.objectKind === 'tree' ? 'дерева' : 'горы');
-  if (LVL.classic) return 'В ячейке ' + st.key + ' уже стоит ' + (LVL.objectKind === 'tree' ? 'дерево' : 'гора');
+  if (LVL.classic && !o) return 'В ячейке ' + st.key + ' нет ' + (LVL.objectKind === 'tree' ? 'леса' : 'горы');
+  if (LVL.classic) return 'В ячейке ' + st.key + ' уже стоит ' + (LVL.objectKind === 'tree' ? 'лес' : 'гора');
   if (!o) return 'В ячейке ' + st.key + ' пусто';
   return 'Команда «' + word + '» здесь не подходит';
 }
 function putPhrase(kind) {
   const names = {
-    tree: ['дерево', 'о'], mountain: ['гора', 'а'], field: ['грядка', 'а'], bed: ['грядка', 'а'],
-    oven: ['печка', 'а'], house: ['дом', ''], shed: ['сарай', ''], bridge: ['мост', ''],
-    water: ['река', 'а'],
+    tree: 'лес посажен', apple: 'сад посажен',
+    mountain: 'гора поставлена', field: 'грядка посажена', bed: 'грядка посажена',
+    oven: 'печка поставлена', house: 'дом построен', shed: 'сарай построен',
+    bridge: 'мост построен', water: 'река отведена',
   };
-  const pair = names[kind] || [kind, ''];
-  return pair[0] + ' поставлен' + pair[1];
+  return names[kind] || (kind + ' поставлен');
 }
 function segment(a, b) {
   const cells = [];
@@ -1190,6 +1308,7 @@ function runVerb(verb, st, o, arg) {
   const { col, row } = selected;
   if (verb.run === 'build') {
     objs[st.key] = makeObj(verb.kind, col, row, { stock: verb.stock || 0, max: verb.stock || 0, price: verb.price || null, emoji: verb.emoji || null });
+    if (verb.kind === 'apple') objs[st.key].fruit = Math.floor(Math.random() * 3); // яблоки / груши / сливы
     stats.ok++; stats.built++;
     flashes.push({ col, row, t: 0.6 });
     log((verb.icon || '') + ' ' + putPhrase(verb.kind) + ': ' + st.key);
@@ -1204,7 +1323,7 @@ function runVerb(verb, st, o, arg) {
       if (verb.gain) { addRes(verb.res, verb.gain); log('💥 Гора ' + st.key + ' взорвана! Осыпь: +' + verb.gain + ' ' + verb.res); }
       else log('💥 Гора ' + st.key + ' взорвана!');
     }
-    else { sndBurn(); log('🔥 Дерево ' + st.key + ' загорелось'); }
+    else { sndBurn(); log('🔥 Лес ' + st.key + ' загорелся'); }
   } else if (verb.run === 'trade') {
     // мгновенная сделка: pay → gain (arg — количество, по умолчанию 1)
     const n = Math.max(1, Math.min(arg || 1, 9));
@@ -1216,6 +1335,7 @@ function runVerb(verb, st, o, arg) {
     for (const k in pay) resources[k] -= pay[k];
     for (const k in gain) addRes(k, gain[k]);
     stats.ok++;
+    lastSubmit.ok = true;
     log(verb.icon + ' ' + verb.cmd + (n > 1 ? ' ×' + n : '') + ': +' + Object.keys(gain).map(k => gain[k] + ' ' + k).join(', '));
     sndPlant();
   } else if (verb.run === 'take') {
@@ -1266,7 +1386,7 @@ function runVerb(verb, st, o, arg) {
     log('🏚 Снесено ' + st.key + (back.length ? ' · возврат ' + back.join(', ') : ''));
     sndTick();
   } else if (verb.run === 'work') {
-    if (o && o.kind === 'field') o.held = true;
+    if (o && (o.kind === 'field' || o.kind === 'apple')) o.held = true;
     workers.push({ key: st.key, col, row, act: verb, phase: 'enter', t: 0, workT: 0, next: verb.time });
     stats.ok++;
     flashes.push({ col, row, t: 0.6 });
@@ -1302,7 +1422,7 @@ function submit() {
     lastSubmit.ok = true;
     return;
   }
-  // адрес перед командой: «б3 дерево»
+  // адрес перед командой: «б3 лес»
   if (p.addr && p.rest) {
     const cell = addrCell(p.addr);
     if (!cell) { failInput('Клетка «' + p.addr + '» за пределами поля'); return; }
@@ -1333,10 +1453,12 @@ function submit() {
     return;
   }
   if (verb.run === 'trade') {
-    const tr = { key: selected ? cellName(selected.col, selected.row) : 'рынок', col: selected ? selected.col : 0, row: selected ? selected.row : 0 };
-    runVerb(verb, tr, null, p.num);
-    lastSubmit.ok = true; streak++;
-    telem('cmd', { ok: true, len: telemLen });
+    // торгуем только у лавки: без клетки или мимо лавки — подсказка
+    const st = selected ? cellState(selected.col, selected.row) : null;
+    const o = st ? objs[st.key] : null;
+    if (!verb.match(o, st)) { failInput(whyNot(word, st, o)); return; }
+    runVerb(verb, st || { key: 'лавка' }, o, p.num);
+    if (lastSubmit.ok) { streak++; telem('cmd', { ok: true, len: telemLen }); }
     kbTarget = null;
     return;
   }
@@ -1665,13 +1787,14 @@ function drawSettings() {
   ctx.fillText('НАСТРОЙКИ ⚙', W / 2, 60);
   ctx.textAlign = 'left';
   setBtns = {};
+  // все строки центрируем по W/2 = 640 (было 520 — смещено влево)
   const mk = (id, label, value, y, hint) => {
-    setBtns[id] = { x: 340, y, w: 360, h: 48 };
-    ctx.fillStyle = '#245c3d'; rr(340, y, 360, 48, 10);
+    setBtns[id] = { x: W / 2 - 180, y, w: 360, h: 48 };
+    ctx.fillStyle = '#245c3d'; rr(W / 2 - 180, y, 360, 48, 10);
     ctx.strokeStyle = '#3d8a5f'; ctx.lineWidth = 2; ctx.stroke();
     ctx.fillStyle = '#eaffea'; ctx.font = 'bold 19px Segoe UI'; ctx.textAlign = 'center';
-    ctx.fillText(label + ': ' + value, 520, y + 30);
-    if (hint) { ctx.fillStyle = '#9dbfa5'; ctx.font = '14px Segoe UI'; ctx.fillText(hint, 520, y + 66); }
+    ctx.fillText(label + ': ' + value, W / 2, y + 30);
+    if (hint) { ctx.fillStyle = '#9dbfa5'; ctx.font = '14px Segoe UI'; ctx.fillText(hint, W / 2, y + 66); }
     ctx.textAlign = 'left';
   };
   mk('mute', '🔊 звук', SAVE.settings.mute ? 'выкл' : 'вкл', 130);
@@ -1679,11 +1802,11 @@ function drawSettings() {
   const themesOwned = ['classic'].concat(SAVE.owned.filter(id => id.startsWith('th-')).map(id => id.slice(3)));
   mk('theme', '🎨 тема', (THEMES[SAVE.settings.theme] || THEMES.classic).name, 290, 'куплено: ' + themesOwned.map(t => THEMES[t].name).join(', '));
   mk('dev', '🛠 все уровни открыты', SAVE.settings.dev ? 'ДА (тест)' : 'нет', 370, 'для проверки любого уровня; прогресс не сбрасывается');
-  setBtns['reset'] = { x: 340, y: 455, w: 360, h: 48 };
-  ctx.fillStyle = setConfirm ? '#8b2f2f' : '#245c3d'; rr(340, 455, 360, 48, 10);
+  setBtns['reset'] = { x: W / 2 - 180, y: 455, w: 360, h: 48 };
+  ctx.fillStyle = setConfirm ? '#8b2f2f' : '#245c3d'; rr(W / 2 - 180, 455, 360, 48, 10);
   ctx.strokeStyle = '#3d8a5f'; ctx.lineWidth = 2; ctx.stroke();
   ctx.fillStyle = '#eaffea'; ctx.font = 'bold 19px Segoe UI'; ctx.textAlign = 'center';
-  ctx.fillText(setConfirm ? ' ТОЧНО стереть всё? нажми ещё раз' : '🗑 сбросить весь прогресс', 520, 485);
+  ctx.fillText(setConfirm ? ' ТОЧНО стереть всё? нажми ещё раз' : '🗑 сбросить весь прогресс', W / 2, 485);
   ctx.textAlign = 'center';
   ctx.fillStyle = '#9dbfa5'; ctx.font = '15px Segoe UI';
   ctx.fillText('Esc или кнопка ниже — назад в меню', W / 2, 640);
@@ -1723,6 +1846,16 @@ function spawnWeed() {
 }
 function update(dt) {
   playT += dt;
+  // сады: фрукты портятся со временем; совсем испорченные — дерево вянет
+  for (const k in objs) {
+    const o = objs[k];
+    if (o.kind !== 'apple') continue;
+    clampGardenStock(o);
+    if (gardenStage(o) === 'gone' && !o.held) {
+      delete objs[k];
+      log('🍂 Сад ' + k + ' вянет — фрукты испортились, посади новый', 'warn');
+    }
+  }
   for (const k in objs) {
     const o = objs[k];
     if (!o.burning) continue;
@@ -1745,7 +1878,7 @@ function update(dt) {
       delete objs[k];
       const cols = o.boom ? ['#8d6e63', '#90a4ae', '#ff9800'] : ['#9e9e9e'];
       for (let i = 0; i < 12; i++) particles.push({ x: cx, y: cy, vx: (Math.random() - .5) * 150 * SF, vy: -40 - Math.random() * 120 * SF, life: 0.9, col: cols[i % cols.length], size: Math.min(10, 3.5 * SF) });
-      log(o.boom ? '💨 Гора ' + k + ' разлетелась — ничего не получено' : '💨 Дерево ' + k + ' сгорело — ничего не получено', 'warn');
+      log(o.boom ? '💨 Гора ' + k + ' разлетелась — ничего не получено' : '💨 Лес ' + k + ' сгорел — ничего не получено', 'warn');
     }
   }
 
@@ -1795,7 +1928,7 @@ function update(dt) {
             log('🪵 Пень остался: ' + w.key + ' — корчевать');
           } else if (o.kind === 'apple') {
             delete objs[w.key];
-            log('🍎 Яблоня ' + w.key + ' собрана до последнего яблока');
+            log('🧺 Сад ' + w.key + ' собран до последнего фрукта');
           } else if (o.kind === 'sea') {
             o.stock = 0; o.max = 0;
             log('✅ Море ' + w.key + ' выловлено: ' + w.act.res + ' ' + have);
@@ -1999,7 +2132,7 @@ function drawObject(o) {
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(o.emoji, cellX(o.col) + CELL / 2, cellY(o.row) + CELL / 2);
     ctx.textBaseline = 'alphabetic';
-    if (o.max) { // полоска запаса (яблони, клетки и т.п.)
+    if (o.max) { // полоска запаса (сады не тут: у них фрукты, клетки и т.п.)
       const frac = Math.max(0, Math.min(1, o.stock / o.max));
       const bw = CELL * 0.6;
       ctx.fillStyle = '#37474f'; ctx.fillRect(cellX(o.col) + CELL * 0.2, cellY(o.row) + CELL - 8, bw, 4);
@@ -2050,16 +2183,54 @@ function drawObject(o) {
     if (frac < 0.66) { ctx.strokeStyle = '#546e7a'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-3 * s, -4 * s); ctx.lineTo(-1 * s, -7 * s); ctx.stroke(); }
     if (frac < 0.33) { ctx.beginPath(); ctx.moveTo(3 * s, -2 * s); ctx.lineTo(4.5 * s, -5 * s); ctx.stroke(); }
     stockBar(frac);
+  } else if (o.kind === 'apple') {
+    // сад: дерево + фрукты. Зрелые фрукты ПОРТЯТСЯ один за другим:
+    // следующий на порчу коричневеет и дрожит, испорченные опадают под дерево
+    const stage = gardenStage(o);
+    const gr = stage === 'grow' ? Math.min(1, (playT - o.t0) / GARDEN_GROW_T) : 1;
+    ctx.fillStyle = '#6d4c41';
+    ctx.fillRect(-2, -9 * gr * grow, 3.5, 9 * gr * grow);
+    ctx.fillStyle = 'hsl(122, 42%, 30%)';
+    ctx.beginPath(); ctx.arc(0, -11 * gr, 7.5 * gr, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(-4.5 * gr, -7 * gr, 4.5 * gr, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(4.5 * gr, -7 * gr, 4.5 * gr, 0, 7); ctx.fill();
+    if (stage === 'ripe') {
+      const FRUIT_COL = ['#e53935', '#d4e157', '#8e24aa']; // яблоки / груши / сливы
+      const fc = FRUIT_COL[o.fruit || 0];
+      const ripeAge = (playT - o.t0) - GARDEN_GROW_T;
+      const spoiling = gardenYieldFrac(o) < 1;
+      const POS = [[-5, -8], [5, -8], [-7, -11], [7, -11], [-3, -14], [3, -14], [0, -16], [0, -11]];
+      for (let i = 0; i < (o.max || 8); i++) {
+        const fx = POS[i % POS.length][0], fy = POS[i % POS.length][1];
+        if (i < o.stock) {
+          const sc = Math.min(1, Math.max(0, (ripeAge - i * 0.35) / 0.35)); // зреют по очереди
+          if (sc <= 0) continue;
+          const rot = spoiling && i === o.stock - 1; // этот портится прямо сейчас
+          ctx.fillStyle = rot ? '#8d6e63' : fc;
+          const bob = rot ? Math.sin(now * 6 + i) * 0.3 : 0;
+          ctx.beginPath(); ctx.arc(fx, fy + bob, 1.9 * sc, 0, 7); ctx.fill();
+        } else {
+          const fi = i - o.stock; // испорченные опали под дерево
+          if (fi < 4) {
+            ctx.fillStyle = 'rgba(93,64,55,0.85)';
+            ctx.beginPath(); ctx.arc(-7 + fi * 4.6, -0.8, 1.4, 0, 7); ctx.fill();
+          }
+        }
+      }
+    }
   } else if (o.kind === 'field') {
     const stage = fieldStage(o);
     ctx.fillStyle = '#5d4037'; ctx.fillRect(-8, -4, 16, 5);
     let h = 4, col = '#7cb342';
-    if (stage === 'grow') h = 3 + 8 * Math.min(1, (playT - o.t0) / 5);
-    else if (stage === 'ripe') { h = 12; col = '#fdd835'; }
-    else { h = 7; col = '#bcaaa4'; }
+    if (stage === 'grow') h = 3 + 8 * Math.min(1, (playT - o.t0) / FIELD_GROW_T);
+    else { h = 12; col = '#fdd835'; }
     ctx.fillStyle = col;
     for (let i = -1; i <= 1; i++) ctx.fillRect(i * 5 - 1, -4 - h, 2, h);
-    if (stage === 'ripe' && o.max) stockBar(frac);
+    // таймер грядки: пока растёт — наполняется зелёным; спелая — полная, спешить некуда
+    const f = stage === 'grow' ? Math.min(1, (playT - o.t0) / FIELD_GROW_T) : 1;
+    ctx.fillStyle = '#0e2418'; ctx.fillRect(-9, 1, 18, 3);
+    ctx.fillStyle = stage === 'grow' ? '#7ee787' : '#8bc34a';
+    ctx.fillRect(-9, 1, Math.max(0.6, 18 * f), 3);
   } else if (o.kind === 'bed') {
     ctx.fillStyle = '#6d4c41'; ctx.fillRect(-8, -3, 16, 4);
     ctx.fillStyle = '#43a047';
@@ -2071,6 +2242,19 @@ function drawObject(o) {
     ctx.moveTo(0, 0); ctx.lineTo(-4, -10); ctx.moveTo(0, 0); ctx.lineTo(0, -12); ctx.moveTo(0, 0); ctx.lineTo(5, -9);
     ctx.stroke();
     ctx.fillStyle = '#c0ca33'; ctx.beginPath(); ctx.arc(0, -12, 2.2, 0, 7); ctx.fill();
+  } else if (o.kind === 'stall') {
+    // базарная лавка: полосатый навес, прилавок, товар
+    ctx.fillStyle = '#8d6e63'; ctx.fillRect(-8, -6, 16, 5); // прилавок
+    ctx.fillStyle = '#5d4037'; ctx.fillRect(-7, -1, 2, 1.5); ctx.fillRect(5, -1, 2, 1.5); // ножки
+    ctx.fillStyle = '#5d4037'; ctx.fillRect(-9, -16, 18, 1.5); // верх навеса
+    for (let i = 0; i < 5; i++) { // полоски навеса
+      ctx.fillStyle = i % 2 ? '#e53935' : '#f5f5f5';
+      ctx.fillRect(-9 + i * 3.7, -14.5, 3.7, 4);
+    }
+    // товар на прилавке: фрукт / пшеница
+    ctx.fillStyle = '#e53935'; ctx.beginPath(); ctx.arc(-4, -7, 1.7, 0, 7); ctx.fill();
+    ctx.fillStyle = '#d4e157'; ctx.beginPath(); ctx.arc(0, -7, 1.7, 0, 7); ctx.fill();
+    ctx.fillStyle = '#fdd835'; ctx.fillRect(2.5, -8.5, 5, 1.6);
   } else if (o.kind === 'water' || o.kind === 'fished' || o.kind === 'sea') {
     ctx.strokeStyle = o.kind === 'sea' ? '#90caf9' : '#bbdefb'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(-8, -6); ctx.lineTo(-4, -8); ctx.lineTo(0, -6); ctx.lineTo(4, -8); ctx.lineTo(8, -6); ctx.stroke();
@@ -2196,17 +2380,26 @@ function demoStart(fromIdx, speed) {
   demo = {
     on: true, paused: false, i, step: -1, phase: 'between', t: 0, speed: speed || 1,
     buf: '', ci: 0, sel: null, sel2: null, retries: 0, redo: false, after: null,
+    chipCmd: null,
     isBubble: false, isWeed: false, isRain: false, rainGot: 0, rainN: 0,
     bubblesCaught: 0, waitSec: 0, msg: 'старт…',
   };
   simHold = true;
+  demoSkillOverride(i);
   applyLevel(i); reset();
-  if (tut) tutSkip();
+  demoTutShow();
   log('▶ ДЕМО: игра играет сама — просто наблюдай (Esc — выход)', 'info');
+}
+// В демо обучение показываем принудительно — даже если этот игрок его уже проходил:
+// зритель видит, как игра учит: затемнение, подсветка зоны, пузырь с заданием.
+function demoTutShow() {
+  tut = LVL.tutorial ? LVL.tutorial.slice() : null;
+  tutIdx = 0;
 }
 function demoStop() {
   if (!demo) return;
   demo = null;
+  skillDone = null; // возврат к личному сейву для навыков
   simHold = false;
   input.value = '';
   state = 'menu'; mapCenterOn(mapFrontier());
@@ -2216,8 +2409,9 @@ function demoGoto(i) {
   if (i >= LEVELS.length) { log('▶ ДЕМО: вся кампания показана'); demoStop(); return; }
   demo.i = i; demo.step = -1; demo.phase = 'between'; demo.t = 0;
   demo.bubblesCaught = 0; demo.isBubble = demo.isWeed = demo.isRain = false;
+  demoSkillOverride(i);
   applyLevel(i); reset();
-  if (tut) tutSkip();
+  demoTutShow();
 }
 function demoAdvance() { demo.step++; demoSetupStep(); }
 function demoSetupStep() {
@@ -2238,6 +2432,10 @@ function demoSetupCmd(st) {
   demo.buf = st.cmd; demo.ci = 0;
   demo.phase = demo.sel ? 'select' : 'type';
   demo.t = 0;
+  // демо «кликает» карточку команды перед печатью — зритель видит клавиатуру-подсказку
+  const body = inline ? st.cmd.replace(/^[а-яё]\d{1,2}\s+/, '') : st.cmd;
+  const verb = (LVL.verbs || []).find(x => body === x.cmd || body.startsWith(x.cmd + ' '));
+  demo.chipCmd = demo.sel && verb ? verb.cmd : null;
   const where = demo.sel
     ? cellName(demo.sel.col, demo.sel.row) + (demo.sel2 ? ' → ' + cellName(demo.sel2.col, demo.sel2.row) : '') + ' · '
     : '';
@@ -2253,9 +2451,12 @@ function demoTick(dtRaw) {
   if (state === 'play') update(dt);
   else if (state === 'rain') rainUpdate(dt);
   demo.t += dt;
+  // пока идёт обучение — демо притормаживает: зритель должен успеть увидеть
+  // каждый шаг (клик по клетке, букву за буквой), как это будет делать ребёнок
+  const slow = !!tut;
   switch (demo.phase) {
     case 'between':
-      if (demo.t >= 0.55) {
+      if (demo.t >= (slow ? 1.0 : 0.55)) {
         if (bubbles.length && demo.bubblesCaught < bubblesNeed()) {
           demo.buf = bubbles[0].word; demo.ci = 0; demo.isBubble = true;
           demo.phase = 'type'; demo.t = 0;
@@ -2264,22 +2465,31 @@ function demoTick(dtRaw) {
       }
       break;
     case 'select':
-      if (demo.t >= 0.45) {
+      if (demo.t >= (slow ? 1.4 : 0.45)) {
         selected = { col: demo.sel.col, row: demo.sel.row }; selected2 = null;
         if (demo.sel2) selected2 = { col: demo.sel2.col, row: demo.sel2.row };
         beep(500, 0.05, 'triangle', 0.07);
-        demo.phase = 'type'; demo.t = 0; demo.ci = 0;
+        demo.phase = demo.chipCmd ? 'chip' : 'type'; demo.t = 0; demo.ci = 0;
+      }
+      break;
+    case 'chip': // «клик» по карточке команды — как учит туториал
+      if (!kbTarget) {
+        demo.msg = 'кликаю карточку «' + demo.chipCmd + '» — появится клавиатура';
+        if (demo.t >= (slow ? 1.3 : 0.4)) { kbTarget = demo.chipCmd; demo.t = 0; }
+      } else {
+        demo.msg = 'печатаю по подсветке клавиш: «' + demo.buf + '»';
+        if (demo.t >= (slow ? 1.0 : 0.5)) { demo.phase = 'type'; demo.t = 0; demo.ci = 0; }
       }
       break;
     case 'type':
-      if (demo.t >= 0.13) {
+      if (demo.t >= (slow ? 0.32 : 0.13)) {
         demo.t = 0; demo.ci++;
         input.value = demo.buf.slice(0, demo.ci);
         if (demo.ci >= demo.buf.length) { demo.phase = 'enter'; demo.t = 0; }
       }
       break;
     case 'enter':
-      if (demo.t >= 0.3) {
+      if (demo.t >= (slow ? 0.9 : 0.3)) {
         submit();
         if (lastSubmit.ok) {
           if (demo.isWeed) { demo.isWeed = false; demo.phase = 'sweep'; demo.t = 0; break; }
@@ -2326,6 +2536,8 @@ function demoTick(dtRaw) {
       if (demo.t >= demo.waitSec) demoAdvance();
       break;
     case 'waitwork':
+      // цель уже закрыта (state win) — рабочие заморожены и не уйдут сами
+      if (state === 'win') { demoAdvance(); break; }
       if (!demoBusy() || demo.t > 240) {
         if (demo.redo) demoSetupCmd(SOLUTIONS[demo.i][demo.step]);
         else demoAdvance();
@@ -2377,6 +2589,7 @@ const KEY_ROWS = ['1234567890', 'йцукенгшщзхъ', 'фывапролд�
 function drawKeyboard(px, top) {
   if (SAVE.settings.kb === 'скрытая') {
     kbClose = null;
+    kbRect = null;
     ctx.fillStyle = '#9dbfa5'; ctx.font = '14px Segoe UI'; ctx.textAlign = 'left';
     ctx.fillText('подсказка скрыта (настройки ⚙)', px, top);
     return false;
@@ -2437,6 +2650,7 @@ function drawKeyboard(px, top) {
     ctx.font = '14px Segoe UI';
     ctx.fillText('· ' + logArr[0].text, px, sy + KS + 48);
   }
+  kbRect = { x: px, y: top - 22, w: 530, h: 616 - (top - 22) }; // от метки до строки ввода
   ctx.restore();
   return true;
 }
@@ -2482,39 +2696,56 @@ function levelUnlocked(i, doneSet) {
   const par = LEVEL_TREE[i] || [];
   if (!par.length) return true;
   const done = doneSet || SAVE.done;
-  return par.some(p => done[p]);
+  // requireAll: уровень-слияние требует ВСЕХ родителей (Ярмарка: Сад и Ферма —
+  // навыки «сад»/«поле» берутся именно с них, одного родителя недостаточно)
+  return LEVELS[i].requireAll ? par.every(p => done[p]) : par.some(p => done[p]);
 }
 const unlockedList = () => LEVELS.map((_, i) => i).filter(i => levelUnlocked(i) && !SAVE.done[i]);
-const parentNames = i => (LEVEL_TREE[i] || []).map(p => LEVELS[p].name).join(' или ');
+const parentNames = i => (LEVEL_TREE[i] || []).map(p => LEVELS[p].name).join(LEVELS[i] && LEVELS[i].requireAll ? ' и ' : ' или ');
+const needPhrase = parentNames;
 
 let menuBtns = {}, mapNodes = [], hoverNodeIdx = -1, lockedPick = -1, newlyUnlocked = [];
 
-// Вертикальная карта-дерево: развилки расходятся в стороны, глубина вниз.
+// Вертикальная карта-дерево: рост СНИЗУ ВВЕРХ — начинаем внизу (уровень 1)
+// и поднимаемся; развилки расходятся в стороны. Y перевёрнут: уровень 1 внизу.
 // Координаты [x, y]; скролл колесом мыши или перетаскиванием.
 const MAP_POS = [
-  [700, 90], [700, 200], [700, 310],           // 1–3
-  [450, 430], [950, 430],                       // 4 САД ← | → 5 Ферма
-  [700, 550], [700, 660],                       // 6 Ярмарка, 7 Река
-  [450, 780], [950, 780], [950, 890], [200, 780], // 8 Рыбак, 9 Дороги, 10 Развилка, 11 Мосты
-  [700, 1000],                                  // 12 Почта
-  [450, 1120], [950, 1120], [450, 1230], [950, 1230], // 13–16
-  [700, 1350], [700, 1460], [700, 1570],        // 17–19
-  [450, 1690], [700, 1690], [950, 1690],        // 20–22 (тройная развилка)
-  [450, 1810], [950, 1810],                     // 23–24
-  [450, 1920], [950, 1920],                     // 25–26
-  [700, 2040], [1150, 2040],                    // 27–28
-  [700, 2160], [700, 2270],                     // 29–30
+  [700, 2270], [700, 2160], [700, 2050],                  // 1–3 — старт внизу
+  [450, 1930], [950, 1930],                                 // 4 САД ← | → 5 ФЕРМА
+  [700, 1810], [700, 1700],                                 // 6 Ярмарка, 7 Река
+  [450, 1580], [950, 1580], [950, 1470], [200, 1580],       // 8 Рыбак, 9 Дороги, 10 Развилка, 11 Мосты
+  [700, 1360],                                              // 12 Почта
+  [450, 1240], [950, 1240], [450, 1130], [950, 1130],       // 13–16
+  [700, 1010], [700, 900], [700, 790],                      // 17–19
+  [450, 670], [700, 670], [950, 670],                       // 20–22 (тройная развилка)
+  [450, 550], [950, 550],                                   // 23–24
+  [450, 440], [950, 440],                                   // 25–26
+  [700, 320], [1150, 320],                                  // 27–28
+  [700, 200], [700, 90],                                    // 29–30 — вершина
 ];
-const MAP_BOTTOM = 2270;
+const MAP_BOTTOM = 2270; // максимум Y — уровень 1 (низ карты)
 // Окно карты — между инфо-строкой (62–128) и кнопками (660): точки не выходят за его границы.
 const MAP_VIEW_TOP = 138, MAP_VIEW_BOT = 648, MAP_VIEW_H = MAP_VIEW_BOT - MAP_VIEW_TOP;
 const MAP_OFF_Y = 124; // отступ: первая точка целиком ниже инфо-строки
 let mapScrollY = 0, mapDrag = null;
 const MAP_MAX_SCROLL = Math.max(0, MAP_BOTTOM + MAP_OFF_Y + 62 - MAP_VIEW_BOT);
+mapScrollY = MAP_MAX_SCROLL; // стартовый вид — низ карты, где уровень 1
 const mapPos = i => ({ x: MAP_POS[i][0], y: MAP_OFF_Y + MAP_POS[i][1] - mapScrollY });
 function mapCenterOn(i) {
   mapScrollY = Math.max(0, Math.min(MAP_MAX_SCROLL, MAP_POS[i][1] + MAP_OFF_Y - MAP_VIEW_TOP - MAP_VIEW_H / 2));
 }
+// скроллбар карты: общие метрики и пересчёт позиция <-> прокрутка
+function mapSb() {
+  const trY = MAP_VIEW_TOP + 2, trH = MAP_VIEW_H - 4;
+  const th2 = Math.max(30, trH * MAP_VIEW_H / (MAP_MAX_SCROLL + MAP_VIEW_H));
+  return { x: 1252, w: 8, trY, trH, th2 };
+}
+const mapSbThumbY = () => { const s = mapSb(); return s.trY + (s.trH - s.th2) * (mapScrollY / MAP_MAX_SCROLL); };
+const mapSbFromY = (y, off) => {
+  const s = mapSb();
+  const k = Math.max(0, Math.min(1, (y - s.trY - off) / (s.trH - s.th2)));
+  return Math.max(0, Math.min(MAP_MAX_SCROLL, k * MAP_MAX_SCROLL));
+};
 function mapFrontier() {
   for (let i = 0; i < LEVELS.length; i++) if (levelUnlocked(i) && !SAVE.done[i]) return i;
   for (let i = LEVELS.length - 1; i >= 0; i--) if (SAVE.done[i]) return i;
@@ -2558,7 +2789,8 @@ function drawMenu() {
     ctx.fillStyle = '#9dbfa5'; ctx.font = 'bold 19px Segoe UI';
     ctx.fillText('Уровень ' + (tgt + 1) + ' — ещё закрыт', 88, 90);
     ctx.font = '15px Segoe UI'; ctx.fillStyle = '#7ba287';
-    ctx.fillText('Открой его, пройдя предыдущие уровни — и узнаешь, что там!', 88, 116);
+    const pars = LEVEL_TREE[tgt] || [];
+    ctx.fillText(pars.length ? 'Сначала пройди: ' + needPhrase(tgt) + ' — и узнаешь, что там!' : 'Открой его, пройдя предыдущие уровни — и узнаешь, что там!', 88, 116);
   } else {
     ctx.fillStyle = '#b9e4bd'; ctx.font = 'bold 18px Segoe UI';
     ctx.fillText('Пройдено ' + Object.keys(SAVE.done).length + ' из ' + LEVELS.length + ' · ⭐ ' + starsBalance(), 46, 88);
@@ -2670,11 +2902,9 @@ function drawMenu() {
 
   // индикатор прокрутки — в границах окна карты
   if (MAP_MAX_SCROLL > 0) {
-    const trY = MAP_VIEW_TOP + 2, trH = MAP_VIEW_H - 4;
-    ctx.fillStyle = '#0e2418'; rr(1252, trY, 8, trH, 4);
-    const th2 = Math.max(30, trH * MAP_VIEW_H / (MAP_MAX_SCROLL + MAP_VIEW_H));
-    const ty = trY + (trH - th2) * (mapScrollY / MAP_MAX_SCROLL);
-    ctx.fillStyle = '#3d8a5f'; rr(1252, ty, 8, th2, 4);
+    const sb = mapSb();
+    ctx.fillStyle = '#0e2418'; rr(sb.x, sb.trY, sb.w, sb.trH, 4);
+    ctx.fillStyle = '#3d8a5f'; rr(sb.x, mapSbThumbY(), sb.w, sb.th2, 4);
   }
 
   // кнопки экранов
@@ -2772,9 +3002,15 @@ function drawPanel() {
     if (order) title = 'ПИСЬМО НА ' + order.toUpperCase();
     else if (st.type === 'busy') title = 'ЯЧЕЙКА ' + st.key + ': ИДЁТ РАБОТА';
     else if (st.type === 'burning') title = 'ЯЧЕЙКА ' + st.key + ': ГОРИТ…';
-    else if (o && o.kind === 'field') {
+    else if (o && o.kind === 'apple') {
+      const s = gardenStage(o);
+      title = 'ЯЧЕЙКА ' + st.key + ' — САД ' +
+        (s === 'grow' ? 'РАСТЁТ (фрукты через ' + gardenLeft(o) + 'с)'
+          : 'ФРУКТЫ ЗРЕЮТ — портятся, успей собрать (осталось ' + gardenLeft(o) + 'с)');
+    } else if (o && o.kind === 'field') {
       const s = fieldStage(o);
-      title = 'ЯЧЕЙКА ' + st.key + ' — ГРЯДКА ' + (s === 'grow' ? 'РАСТЁТ' : s === 'ripe' ? 'СПЕЛАЯ' : 'СУХАЯ');
+      title = 'ЯЧЕЙКА ' + st.key + ' — ГРЯДКА ' +
+        (s === 'grow' ? 'РАСТЁТ (готова через ' + fieldLeft(o) + 'с)' : 'СПЕЛАЯ — собирай не спеша');
     } else if (!o) title = 'ЯЧЕЙКА ' + st.key + ' ПУСТА — ДОСТУПНО:';
     else title = 'ЯЧЕЙКА ' + st.key + ' — ' + (KIND_LABEL[o.kind] || 'ЗАНЯТО');
     list = commandsFor(st).map(w => ({ cmd: w, label: CMD_INFO(w) }));
@@ -2796,6 +3032,7 @@ function drawPanel() {
     else listTop += 26; // клавиатура скрыта настройкой — список чуть ниже заметки
   }
   if (!kbOpen) {
+    kbRect = null;
     // чипы подстраиваются под свободное место: 1 колонка → 2 колонки → ниже → без подсказок
     const avail = Math.max(46, CHIPS_BOTTOM - listTop);
     let cols = 1;
@@ -2817,10 +3054,12 @@ function drawPanel() {
       ctx.fillStyle = '#eaffea'; ctx.font = '18px Segoe UI';
       let wait = selected ? 'ждём — команды появятся, когда ячейка освободится' : 'кликни по ячейке → по команде — появится клавиатура';
       if (order && !selected) wait = 'кликни клетку из заказа и напечатай «письмо»';
+      if (!selected && LVL.presets && LVL.presets.some(p => p.kind === 'stall')) wait = 'лавка в центре — кликни по ней, чтобы торговать; фрукты и пшеницу вырасти сам';
       if (!selected && LVL.presets && LVL.presets.some(p => p.kind === 'mountain')) wait = 'горы уже стоят на карте — кликни по горе';
       if (!selected && LVL.sea && !LVL.two) wait = 'море на краю карты — отведи реку';
       if (!selected && LVL.sea && LVL.two) wait = 'море на краю — отведи реку, потом мост и дорога к дому';
       const o = selected ? objs[cellName(selected.col, selected.row)] : null;
+      if (o && o.kind === 'apple' && gardenStage(o) === 'grow') wait = 'сад растёт — скоро созреют фрукты';
       if (o && o.kind === 'field' && fieldStage(o) === 'grow') wait = 'грядка растёт — скоро можно жать или косить';
       if (o && (o.kind === 'sawmill' || o.kind === 'warehouse')) wait = 'сюда веди дорогу, команда клетке не нужна';
       if (o && o.kind === 'house' && !LVL.verbs.some(v => v.cmd === 'сносить')) wait = 'дом стоит — соедини его дорогой с мостом';
@@ -2952,13 +3191,23 @@ function draw() {
     ctx.globalAlpha = a;
     ctx.font = 'bold 20px Segoe UI';
     const tw = ctx.measureText(b.word).width;
+    const bw2 = tw + 20, bx2 = b.x - bw2 / 2, by2 = b.y - 24, bh2 = 40;
     ctx.fillStyle = 'rgba(13,40,60,0.85)';
     ctx.strokeStyle = b.col; ctx.lineWidth = 2;
     ctx.beginPath();
-    if (ctx.roundRect) ctx.roundRect(b.x - tw / 2 - 10, b.y - 22, tw + 20, 34, 14); else ctx.rect(b.x - tw / 2 - 10, b.y - 22, tw + 20, 34);
+    if (ctx.roundRect) ctx.roundRect(bx2, by2, bw2, bh2, 14); else ctx.rect(bx2, by2, bw2, bh2);
     ctx.fill(); ctx.stroke();
     ctx.fillStyle = '#e1f5fe'; ctx.textAlign = 'center';
-    ctx.fillText(b.word, b.x, b.y);
+    ctx.fillText(b.word, b.x, b.y - 1);
+    // шкала времени: слово стоит печатать, пока полоска не истаяла
+    const frac = Math.max(0, Math.min(1, b.life / (b.max || BUBBLE_LIFE)));
+    const low = frac <= 0.25;
+    const pulse = low ? 0.6 + 0.4 * Math.sin(now * 10) : 1; // на исходе — мигает
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    ctx.fillRect(bx2 + 7, by2 + bh2 - 9, bw2 - 14, 4);
+    ctx.fillStyle = frac > 0.5 ? b.col : frac > 0.25 ? '#ffe066' : '#ff8a80';
+    ctx.globalAlpha = a * pulse;
+    ctx.fillRect(bx2 + 7, by2 + bh2 - 9, Math.max(0.5, (bw2 - 14) * frac), 4);
     ctx.globalAlpha = 1;
   }
   drawPanel();
@@ -3041,16 +3290,33 @@ canvas.addEventListener('mousemove', e => {
 canvas.addEventListener('mouseleave', () => { hover = null; hoverNodeIdx = -1; });
 canvas.addEventListener('wheel', e => {
   if (state === 'menu' && MAP_MAX_SCROLL > 0) {
+    // колесо вниз — вид идёт вниз по карте (к началу, низ), вверх — к вершине
     mapScrollY = Math.max(0, Math.min(MAP_MAX_SCROLL, mapScrollY + (e.deltaY > 0 ? 80 : -80)));
     e.preventDefault();
   }
 }, { passive: false });
+let wasMapDrag = false; // был отпуск после драга карты — подавить следующий клик
 canvas.addEventListener('mousedown', e => {
-  if (state === 'menu') mapDrag = { y: e.clientY, scroll: mapScrollY, moved: false };
+  if (state !== 'menu') return;
+  wasMapDrag = false;
+  if (MAP_MAX_SCROLL > 0) {
+    const sb = mapSb(), p = canvasPos(e);
+    // захват ползунка скроллбара (с небольшим запасом по краям для удобства)
+    if (p.x >= sb.x - 6 && p.x <= sb.x + sb.w + 6 && p.y >= sb.trY && p.y <= sb.trY + sb.trH) {
+      const ty = mapSbThumbY();
+      const onThumb = p.y >= ty && p.y <= ty + sb.th2;
+      // off — смещение курсора от верха ползунка; клик по дорожке центрирует ползунок на курсоре
+      mapDrag = { thumb: onThumb ? p.y - ty : sb.th2 / 2, moved: true };
+      mapScrollY = mapSbFromY(p.y, mapDrag.thumb);
+      return;
+    }
+  }
+  mapDrag = { y: e.clientY, scroll: mapScrollY, moved: false };
 });
-addEventListener('mouseup', () => { mapDrag = null; });
+addEventListener('mouseup', () => { wasMapDrag = !!(mapDrag && mapDrag.moved); mapDrag = null; });
 canvas.addEventListener('mousemove', e => {
   if (mapDrag && state === 'menu') {
+    if (mapDrag.thumb !== undefined) { mapScrollY = mapSbFromY(canvasPos(e).y, mapDrag.thumb); return; }
     const dy = e.clientY - mapDrag.y;
     if (Math.abs(dy) > 5) mapDrag.moved = true;
     if (mapDrag.moved) {
@@ -3060,7 +3326,7 @@ canvas.addEventListener('mousemove', e => {
   }
 });
 canvas.addEventListener('click', e => {
-  if (state === 'menu' && mapDrag && mapDrag.moved) { mapDrag = null; return; } // это был драг, не клик
+  if (state === 'menu' && wasMapDrag) { wasMapDrag = false; return; } // это был драг, не клик
   const p = canvasPos(e);
   if (demo && demo.on) {
     // управление демо: скорость/пауза/стоп; остальные клики игнорируем
