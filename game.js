@@ -277,27 +277,30 @@ const LEVELS = [
     ],
   },
   {
-    name: 'СКЛАД', size: 9, icon: '📦', par: 200,
-    // добыча навыками: гора + два леса; сараи поднимают лимит брёвен
-    presets: [ { col: 4, row: 1, kind: 'mountain', stock: 30 }, { col: 5, row: 4, kind: 'tree', stock: 20 }, { col: 5, row: 6, kind: 'tree', stock: 20 } ],
+    name: 'СКЛАД', size: 9, icon: '📦', par: 260,
+    // ОТЛИЧИЕ: лимит брёвен (20) — без сараев цель недостижима. Сарай стоит
+    // 2 бревна, но поднимает лимит на 10: дилемма «тратить или копить».
+    presets: [ { col: 4, row: 1, kind: 'mountain', stock: 30 }, { col: 5, row: 4, kind: 'tree', stock: 40 }, { col: 5, row: 6, kind: 'tree', stock: 40 }, { col: 5, row: 8, kind: 'tree', stock: 40 } ],
     wallet: ['булыжники', 'бревна'],
-    cap: { 'бревна': 20 }, capRaise: 'shed', capAdd: 8,
-    goal: [ { kind: 'shed', n: 2, gen: 'сарая', label: 'сарай' }, { kind: 'house', n: 1, gen: 'дом', label: 'дом' } ],
+    cap: { 'бревна': 20 }, capRaise: 'shed', capAdd: 10,
+    goal: [ { kind: 'shed', n: 2, gen: 'сарая', label: 'сарай' }, { res: 'бревна', n: 24, gen: 'брёвен', label: 'бревна' } ],
     verbs: [
-      { cmd: 'дом', icon: '🏠', hint: 'дом — 6 булыжников, 4 бревна', match: o => !o, run: 'build', kind: 'house', price: { 'булыжники': 6, 'бревна': 4 } },
-      { cmd: 'сарай', icon: '🏚️', hint: 'сарай — 3 булыжника, 2 бревна (+8 к складу брёвен)', match: o => !o, run: 'build', kind: 'shed', price: { 'булыжники': 3, 'бревна': 2 } },
-      { cmd: 'сносить', icon: '🪓', hint: 'сносить — убрать и вернуть половину', match: o => o && (o.kind === 'house' || o.kind === 'shed'), run: 'refund' },
+      { cmd: 'сарай', icon: '🏚️', hint: 'сарай — 3 булыжника, 2 бревна (+10 к складу брёвен)', match: o => !o, run: 'build', kind: 'shed', price: { 'булыжники': 3, 'бревна': 2 } },
+      { cmd: 'сносить', icon: '🪓', hint: 'сносить — убрать сарай и вернуть половину', match: o => o && o.kind === 'shed', run: 'refund' },
     ],
   },
   {
     name: 'КУЗНИЦА', size: 9, icon: '⚒️', par: 210,
-    // своя гора и лес кормят горны
+    // ОТЛИЧИЕ: глаголы с приставками — «сковать» (медленно, дёшево) и
+    // «подковать» (вдвое больше за подход, дороже по дровам). Поток: кузнец
+    // работает, пока хватает материала.
     presets: [ { col: 4, row: 1, kind: 'mountain', stock: 30 }, { col: 5, row: 4, kind: 'tree', stock: 20 } ],
-    wallet: ['булыжники', 'дрова'],
+    wallet: ['булыжники', 'дрова', 'деталь'],
     goal: [ { res: 'деталь', n: 6, gen: 'деталей', label: 'деталь' } ],
     verbs: [
       { cmd: 'горн', icon: '🔥', hint: 'горн — 4 булыжника', match: o => !o, run: 'build', kind: 'oven', price: { 'булыжники': 4 } },
       { cmd: 'сковать', icon: '⚒️', hint: 'сковать — 1 булыжник и 1 дрова → деталь (кузнец работает, пока есть материал)', match: o => o && o.kind === 'oven', run: 'work', worker: 'hammer', time: 1.6, gain: 1, res: 'деталь', pay: { 'булыжники': 1, 'дрова': 1 } },
+      { cmd: 'подковать', icon: '🐴', hint: 'подковать — 1 булыжник и 2 дрова → сразу 2 детали', match: o => o && o.kind === 'oven', run: 'work', worker: 'hammer', time: 2.2, gain: 2, res: 'деталь', pay: { 'булыжники': 1, 'дрова': 2 } },
     ],
   },
   {
@@ -310,11 +313,13 @@ const LEVELS = [
     ],
   },
   {
-    name: 'ТЕПЛИЦА', size: 12, icon: '🥬', weedEvery: 5, par: 220,
-    goal: [ { res: 'овощи', n: 24, gen: 'овоща', label: 'овощи' } ],
+    name: 'ТЕПЛИЦА', size: 12, icon: '🥬', weedEvery: 5, regrow: true, par: 240,
+    // ОТЛИЧИЕ от Огорода: грядка после сбора ОТРАСТАЕТ сама — конвейер
+    // «посадил один раз — собирай всё время», сорняки при этом чаще.
+    goal: [ { res: 'овощи', n: 40, gen: 'овоща', label: 'овощи' } ],
     verbs: [
-      { cmd: 'грядка', icon: '🥬', hint: 'грядка — посадить (10 овощей)', match: o => !o, run: 'build', kind: 'bed', stock: 10 },
-      { cmd: 'собрать', icon: '🧺', hint: 'собрать — 10 овощей', match: o => o && o.kind === 'bed', run: 'work', worker: 'basket', time: 1, cost: 1, gain: 1, res: 'овощи' },
+      { cmd: 'грядка', icon: '🥬', hint: 'грядка — посадить (10 овощей, отрастает)', match: o => !o, run: 'build', kind: 'bed', stock: 10 },
+      { cmd: 'собрать', icon: '🧺', hint: 'собрать — 10 овощей, потом грядка отрастёт', match: o => o && o.kind === 'bed', run: 'work', worker: 'basket', time: 1, cost: 1, gain: 1, res: 'овощи' },
       { cmd: 'полоть', icon: '🌿', hint: 'полоть — убрать сорняк', match: o => o && o.kind === 'weed', run: 'clear' },
     ],
   },
@@ -446,18 +451,24 @@ const LEVELS = [
     ],
   },
   {
-    name: 'СВОЙ ГОРОД', size: 9, icon: '🏙', par: 180,
-    // финал: щебень для декораций добываем сами
-    presets: [ { col: 4, row: 1, kind: 'mountain', stock: 30 }, { col: 4, row: 4, kind: 'mountain', stock: 30 } ],
-    wallet: ['щебень'],
+    name: 'СВОЙ ГОРОД', size: 12, icon: '🌆', par: 320, requireAll: true,
+    // ОТЛИЧИЕ (финал): «город мечты» — вся коллекция целиком: жильё + все
+    // украшения. Материалы добываем самыми разными навыками: гора даёт
+    // булыжники и щебень, лес — брёвна.
+    presets: [ { col: 4, row: 1, kind: 'mountain', stock: 30 }, { col: 4, row: 6, kind: 'mountain', stock: 30 }, { col: 4, row: 8, kind: 'mountain', stock: 30 }, { col: 6, row: 8, kind: 'mountain', stock: 30 }, { col: 11, row: 2, kind: 'tree', stock: 20 } ],
+    wallet: ['булыжники', 'бревна', 'щебень'],
     goal: [
+      { kind: 'house', n: 1, gen: 'дом', label: 'дом' },
       { kind: 'fountain', n: 1, gen: 'фонтан', label: 'фонтан' },
       { kind: 'flowerbed', n: 2, gen: 'клумбы', label: 'клумба' },
-      { kind: 'tree2', n: 1, gen: 'ёлка', label: 'ёлка' },
+      { kind: 'swing', n: 1, gen: 'качели', label: 'качели' },
+      { kind: 'tree2', n: 2, gen: 'ёлки', label: 'ёлка' },
     ],
     verbs: [
+      { cmd: 'дом', icon: '🏠', hint: 'дом — 6 булыжников, 4 бревна', match: o => !o, run: 'build', kind: 'house', price: { 'булыжники': 6, 'бревна': 4 } },
       { cmd: 'клумба', icon: '🌸', hint: 'клумба — 1 щебень', match: o => !o, run: 'build', kind: 'flowerbed', price: { 'щебень': 1 }, emoji: '🌸' },
       { cmd: 'ёлка', icon: '🌲', hint: 'ёлка — 2 щебня', match: o => !o, run: 'build', kind: 'tree2', price: { 'щебень': 2 }, emoji: '🌲' },
+      { cmd: 'качели', icon: '🛝', hint: 'качели — 3 щебня', match: o => !o, run: 'build', kind: 'swing', price: { 'щебень': 3 }, emoji: '🛝' },
       { cmd: 'фонтан', icon: '⛲', hint: 'фонтан — 4 щебня', match: o => !o, run: 'build', kind: 'fountain', price: { 'щебень': 4 }, emoji: '⛲' },
     ],
   },
@@ -560,16 +571,19 @@ const SOLUTIONS = [
     { cell: 'б1', cmd: 'печка' }, { cell: 'б2', cmd: 'печка' },
     ...Array.from({ length: 8 }, (_, i) => ({ cell: i % 2 ? 'б2' : 'б1', cmd: 'испечь', waitWork: true })),
   ],
-  [ // 15: склад — добыча навыками, 2 сарая поднимают лимит, затем дом
-    { cell: 'д2', cmd: 'колоть булыжник' }, { waitWork: true },
-    { cell: 'е5', cmd: 'пилить бревна' }, { cell: 'е7', cmd: 'пилить бревна' }, { waitWork: true },
-    { cell: 'а1', cmd: 'сарай' }, { cell: 'а2', cmd: 'сарай' }, { cell: 'а3', cmd: 'дом' },
+  [ // 15: склад — упрись в лимит 20: сарай +10, и так до 24 брёвен (3 дерева)
+    { cell: 'е5', cmd: 'пилить бревна' }, { waitWork: true },   // 10
+    { cell: 'е7', cmd: 'пилить бревна' }, { waitWork: true },   // 20 — лимит!
+    { cell: 'д2', cmd: 'колоть булыжник' }, { waitWork: true }, // булыжники на сарай
+    { cell: 'а1', cmd: 'сарай' },                                // 18, лимит 30
+    { cell: 'е9', cmd: 'пилить бревна' }, { waitWork: true },   // 28 (лимит 30)
+    { cell: 'а2', cmd: 'сарай' },                                // 26, лимит 40 — цель
   ],
-  [ // 16: кузница — своя гора и лес кормят два горна
+  [ // 16: кузница — приставки: «сковать» копит впрок, «подковать» бьёт вдвое
     { cell: 'д2', cmd: 'колоть булыжник' }, { waitWork: true },
     { cell: 'е5', cmd: 'рубить дрова' }, { waitWork: true },
     { cell: 'а1', cmd: 'горн' }, { cell: 'а2', cmd: 'горн' },
-    { cell: 'а1', cmd: 'сковать' }, { cell: 'а2', cmd: 'сковать' },
+    { cell: 'а1', cmd: 'подковать' }, { cell: 'а2', cmd: 'сковать' },
     { waitWork: true },
   ],
   [ // 17: три грядки, сорняки выпалываем
@@ -577,11 +591,12 @@ const SOLUTIONS = [
     { cell: 'а1', cmd: 'собрать', sweep: true }, { waitWork: true },
     { cell: 'а3', cmd: 'собрать', sweep: true }, { waitWork: true },
   ],
-  [ // 18: теплица — 3 грядки по 10
+  [ // 18: теплица — грядки отрастают: три грядки, два круга сбора
     { cell: 'а1', cmd: 'грядка' }, { cell: 'а3', cmd: 'грядка' }, { cell: 'а5', cmd: 'грядка' },
-    { cell: 'а1', cmd: 'собрать', sweep: true }, { waitWork: true },
-    { cell: 'а3', cmd: 'собрать', sweep: true }, { waitWork: true },
-    { cell: 'а5', cmd: 'собрать', sweep: true }, { waitWork: true },
+    { cell: 'а1', cmd: 'собрать', sweep: true }, { waitWork: true }, // 10 → отросла
+    { cell: 'а3', cmd: 'собрать', sweep: true }, { waitWork: true }, // 20 → отросла
+    { cell: 'а5', cmd: 'собрать', sweep: true }, { waitWork: true }, // 30 → отросла
+    { cell: 'а1', cmd: 'собрать', sweep: true }, { waitWork: true }, // 40 — цель
   ],
   [ // 19: городок — камень, щебень и брёвна добываем перед стройкой
     { cell: 'д2', cmd: 'колоть булыжник' }, { cell: 'д4', cmd: 'дробить щебень' }, { waitWork: true },
@@ -648,10 +663,17 @@ const SOLUTIONS = [
     { cells: ['в4', 'в5'], cmd: 'дорога' },
     { cells: ['в5', 'в6'], cmd: 'дорога' },
   ],
-  [ // 30: свой город — щебень из гор, потом декорации
-    { cell: 'д2', cmd: 'дробить щебень' }, { cell: 'д5', cmd: 'дробить щебень' }, { waitWork: true },
-    { cell: 'а1', cmd: 'клумба' }, { cell: 'а2', cmd: 'клумба' },
-    { cell: 'б1', cmd: 'ёлка' }, { cell: 'б2', cmd: 'фонтан' },
+  [ // 30: город мечты — дом + вся коллекция: булыжники, брёвна и щебень свои
+    { cell: 'д2', cmd: 'дробить щебень' }, { waitWork: true },  // 6 щебня
+    { cell: 'д7', cmd: 'дробить щебень' }, { waitWork: true },  // ещё 6 = 12
+    { cell: 'д9', cmd: 'дробить щебень' }, { waitWork: true },  // ещё 6 = 18
+    { cell: 'ё9', cmd: 'колоть булыжник' }, { waitWork: true }, // булыжники на дом
+    { cell: 'к3', cmd: 'пилить бревна' }, { waitWork: true },   // брёвна на дом
+    { cell: 'а1', cmd: 'дом' },
+    { cell: 'а2', cmd: 'клумба' }, { cell: 'б1', cmd: 'клумба' },
+    { cell: 'в1', cmd: 'ёлка' }, { cell: 'в2', cmd: 'ёлка' },
+    { cell: 'г1', cmd: 'качели' },
+    { cell: 'д1', cmd: 'фонтан' },
   ],
 ];
 
@@ -2003,6 +2025,10 @@ function update(dt) {
           } else if (o.kind === 'water') {
             o.kind = 'fished'; o.stock = 0; o.max = 0;
             log('✅ Клетка ' + w.key + ' выловлена: ' + w.act.res + ' ' + have);
+          } else if (o.kind === 'bed' && LVL.regrow) {
+            // теплица: грядка не исчезает — отрастает и ждёт следующего сбора
+            o.stock = o.max; o.t0 = playT;
+            log('🥬 Теплица ' + w.key + ' отросла — собирай снова');
           } else {
             const title = { mountain: 'Гора', field: 'Грядка', bed: 'Грядка' }[o.kind] || 'Объект';
             delete objs[w.key];
