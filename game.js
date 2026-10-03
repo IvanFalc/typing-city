@@ -25,7 +25,7 @@ const FORMS = {
   пшеница: ['пшеница', 'пшеницы', 'пшеницы'],
   фрукты: ['фрукт', 'фрукта', 'фруктов'],
   монеты: ['монета', 'монеты', 'монет'],
-  лента: ['лента', 'ленты', 'лент'],
+  шоколад: ['шоколад', 'шоколада', 'шоколадов'],
 };
 const KIND_LABEL = {
   tree: 'ЛЕС', stump: 'ПЕНЬ', mountain: 'ГОРА', field: 'ГРЯДКА',
@@ -125,12 +125,18 @@ const LEVELS = [
     // торгуем ТОЛЬКО у лавки в центре площади
     name: 'ЯРМАРКА', size: 7, icon: '🎪', par: 140, requireAll: true,
     presets: [ { col: 3, row: 3, kind: 'stall' } ],
-    wallet: ['фрукты', 'пшеница', 'монеты', 'лента'],
-    goal: [ { res: 'монеты', n: 14, gen: 'монет', label: 'монета' }, { res: 'лента', n: 2, gen: 'лент', label: 'лента' } ],
+    wallet: ['фрукты', 'пшеница', 'монеты', 'шоколад'],
+    // цель — именно ПРОДАТЬ (счётчик сделок), а не «накопить монеты»:
+    // монеты лишь промежуточный шаг к шоколаду
+    goal: [
+      { flag: 'sold:фрукты', n: 6, gen: 'фруктов', label: 'продать фрукты' },
+      { flag: 'sold:пшеница', n: 6, gen: 'пшеницы', label: 'продать пшеницу' },
+      { res: 'шоколад', n: 2, gen: 'шоколада', label: 'шоколад' },
+    ],
     verbs: [
-      { cmd: 'продать фрукт', icon: '🍎', hint: 'у лавки: 1 фрукт → 2 монеты (можно «продать фрукт 3»)', match: o => o && o.kind === 'stall', run: 'trade', price: { 'фрукты': 1 }, gain: { 'монеты': 2 } },
-      { cmd: 'продать пшеницу', icon: '🌾', hint: 'у лавки: 1 пшеница → 1 монета', match: o => o && o.kind === 'stall', run: 'trade', price: { 'пшеница': 1 }, gain: { 'монеты': 1 } },
-      { cmd: 'купить ленту', icon: '🎀', hint: 'у лавки: 5 монет → 1 лента', match: o => o && o.kind === 'stall', run: 'trade', price: { 'монеты': 5 }, gain: { 'лента': 1 } },
+      { cmd: 'продать фрукт', icon: '🍎', hint: 'у лавки: 1 фрукт → 2 монеты (можно «продать фрукт 3»)', match: o => o && o.kind === 'stall', run: 'trade', price: { 'фрукты': 1 }, gain: { 'монеты': 2 }, sold: 'фрукты' },
+      { cmd: 'продать пшеницу', icon: '🌾', hint: 'у лавки: 1 пшеница → 1 монета', match: o => o && o.kind === 'stall', run: 'trade', price: { 'пшеница': 1 }, gain: { 'монеты': 1 }, sold: 'пшеница' },
+      { cmd: 'купить шоколад', icon: '🍫', hint: 'у лавки: 5 монет → 1 шоколад', match: o => o && o.kind === 'stall', run: 'trade', price: { 'монеты': 5 }, gain: { 'шоколад': 1 } },
     ],
   },
   // ===== ГЛАВА 2 «ВОДА И ПУТИ» =====
@@ -458,10 +464,9 @@ const SOLUTIONS = [
     { wait: 6.6 }, // фрукты и пшеница зреют
     { cell: 'а1', cmd: 'собрать фрукты' }, { cell: 'б1', cmd: 'жать пшеницу' },
     { waitWork: true },
-    { cell: 'г4', cmd: 'продать фрукт 4' }, // 8 фруктов → 16 монет
-    { cell: 'г4', cmd: 'продать фрукт 4' },
-    { cell: 'г4', cmd: 'продать пшеницу 8' }, // +8 монет → 24
-    { cell: 'г4', cmd: 'купить ленту' }, { cell: 'г4', cmd: 'купить ленту' }, // −10 → 14 монет
+    { cell: 'г4', cmd: 'продать фрукт 6' },   // 6 фруктов → 12 монет
+    { cell: 'г4', cmd: 'продать пшеницу 6' }, // 6 пшеницы → 6 монет (итого 18)
+    { cell: 'г4', cmd: 'купить шоколад' }, { cell: 'г4', cmd: 'купить шоколад' }, // −10 → 8 монет
   ],
   [ // 7: брёвна из леса (навык) → удочка в море, реки и мосты
     { cell: 'й3', cmd: 'пилить бревна' }, { cell: 'й6', cmd: 'пилить бревна' },
@@ -1089,6 +1094,7 @@ function goalVal(g) {
   if (g.flag === 'roads') return linked('sawmill', 'warehouse') ? 1 : 0;
   if (g.flag === 'roads2') return linked('sawmill', 'house') ? 1 : 0;
   if (g.flag === 'town') return townOk() ? 1 : 0;
+  if (g.flag && g.flag.slice(0, 5) === 'sold:') return (stats.sold && stats.sold[g.flag.slice(5)]) || 0;
   if (g.kind) return countKind(g.kind);
   return resources[g.res] || 0;
 }
@@ -1110,7 +1116,7 @@ function layLevel() {
 function reset() {
   state = 'play'; resources = {}; objs = {}; workers = [];
   particles = []; floats = []; flashes = []; logArr = [];
-  stats = { typed: 0, ok: 0, err: 0, built: 0, stumpsMade: 0, stumpsCleared: 0, startT: performance.now() };
+  stats = { typed: 0, ok: 0, err: 0, built: 0, stumpsMade: 0, stumpsCleared: 0, sold: {}, startT: performance.now() };
   for (const g of LVL.goal) if (g.res) resources[g.res] = 0;
   if (LVL.start) for (const k in LVL.start) resources[k] = LVL.start[k];
   selected = null; selected2 = null; kbTarget = null;
@@ -1135,7 +1141,7 @@ function reset() {
 // ---------- команды ----------
 function CMD_INFO(word) {
   const v = LVL.verbs.find(x => x.cmd === word);
-  return v ? v.icon + ' ' + v.hint : word;
+  return v ? v.icon + ' ' + v.hint + (v.skill ? ' · навык' : '') : word;
 }
 function workerAt(key) { return workers.find(w => w.key === key && w.phase !== 'leave'); }
 function cellState(c, r) {
@@ -1150,7 +1156,9 @@ function cellState(c, r) {
 function commandsFor(st) {
   if (st.type === 'busy' || st.type === 'burning') return [];
   const o = objs[st.key];
-  return LVL.verbs.filter(v => !v.skill && v.run !== 'mail' && v.match(o, st)).map(v => v.cmd);
+  // навыки показываем наравне с командами уровня: без этого ребёнок кликает
+  // по дереву/горе и не видит, ЧТО можно сделать выученной командой
+  return LVL.verbs.filter(v => v.run !== 'mail' && v.match(o, st)).map(v => v.cmd);
 }
 function workerName(mode) {
   return {
@@ -1334,6 +1342,7 @@ function runVerb(verb, st, o, arg) {
     if (lack.length) { failInput('не хватает: ' + lack.join(', ')); return; }
     for (const k in pay) resources[k] -= pay[k];
     for (const k in gain) addRes(k, gain[k]);
+    if (verb.sold) stats.sold[verb.sold] = (stats.sold[verb.sold] || 0) + n;
     stats.ok++;
     lastSubmit.ok = true;
     log(verb.icon + ' ' + verb.cmd + (n > 1 ? ' ×' + n : '') + ': +' + Object.keys(gain).map(k => gain[k] + ' ' + k).join(', '));
