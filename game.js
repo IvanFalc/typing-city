@@ -474,6 +474,140 @@ const LEVELS = [
   },
 ];
 
+// ---------- ПОДСКАЗКИ «?» (кружок у кнопки «карта») ----------
+// Текст для игрока: что делать на уровне и в чём его фишка.
+const HINTS = {
+  1: 'Кликни пустую клетку → карточку команды → напечатай слово (клавиатура-подсказка поможет) → Enter. «рубить дрова» даёт дрова, «пилить бревна» — брёвна. Цель: 40 дров и 10 брёвен.',
+  2: 'Мышка отдыхает — клетку выбираем печатью! Напечатай «а1 лес»: адрес и команда в одной строке. Цель: 20 дров и 5 брёвен.',
+  3: 'Горы — источник камня. Кликни гору: «колоть булыжник» (кирка) или «дробить щебень» (кувалда). «взорвать» — весёлый взрыв и +1 щебень. Цель: 30 булыжников и 6 щебня.',
+  4: 'Посади «сад»: фрукты зреют ~6 секунд, а потом ПОРТЯТСЯ. Успей «собрать фрукты», пока целые — раньше собрал, больше взял. Цель: 16 фруктов.',
+  5: 'Посади «поле»: грядка растёт 6 секунд, потом ждёт сбора сколько угодно. «жать пшеницу» или «косить сено». Цель: 24 пшеницы и 8 сена.',
+  6: 'Товар выращивается самим: «сад» и «поле» → собери фрукты и пшеницу → продай ТОЛЬКО у лавки в центре («продать фрукт», «продать пшеницу») → купи 2 шоколада.',
+  7: '«река» отводит воду от моря. «удить» в море даёт рыбу. «мост» ставится на реку за 2 бревна (лес на карте — «пилить бревна»). Цель: 16 рыб и 4 моста.',
+  8: 'Кликни клетку моря, посмотри слово в панели и напечатай его — рыба твоя. Цель: 8 рыб.',
+  9: 'Дроби щебень с гор. Дорога: кликни клетку старта → напечатай «дорога» → кликни конец — дорога достроится, пока хватает щебня. Соедини лесопилку и склад.',
+  10: 'Две цели: путь к складу И путь к дому. Щебень добывай с запасом — каждый новый кусок дороги стоит 1 щебень.',
+  11: 'Через готовую реку ставь «мост» — 2 бревна. Брёвна из трёх лесов: «пилить бревна». Цель: 6 мостов.',
+  12: 'Заказы видны в панели сверху. Печатай «письмо» и адрес одной строкой: «письмо в3». Мышка не нужна! Цель: 8 писем.',
+  13: 'Материалы добываем сами: «колоть булыжник» и «пилить бревна». Потом «дом» (6 бул.+4 брёв.) и «сарай» (3+2). «сносить» вернёт половину цены.',
+  14: 'Цепочка: «поле» → пшеница; «печка» (4 булыжника); клик по печке → «испечь»: 2 пшеницы + 1 дрова = хлеб. Цель: 8 хлебов.',
+  15: 'Больше 20 брёвен не влезает — 🔒. Строй «сарай»: стоит 2 бревна, но поднимает лимит на 10. Цель: 2 сарая и 24 бревна.',
+  16: '«горн» → клик по нему: «сковать» (1+1 → деталь) или «подковать» (1+2 → сразу 2 детали). Кузнец работает, пока есть материал. Цель: 6 деталей.',
+  17: '«грядка» растёт, но сорняки лезут постоянно: кликни сорняк → «полоть». Спелую грядку — «собрать». Цель: 24 овоща.',
+  18: 'Тепличная грядка после сбора ОТРАСТАЕТ сама — посадил один раз, собирай всё время. Сорняки чаще, не зевай. Цель: 40 овощей.',
+  19: 'Экзамен главы: добудь булыжники, брёвна и щебень, отведи реку, построй дом, дорогу и мост — свяжи всё в город.',
+  20: 'Дроби щебень с трёх гор и украшай: «клумба», «ёлка», «качели», «фонтан». Цель: фонтан, 2 клумбы, качели, 2 ёлки.',
+  21: '«клетка» (3 булыжника с горы) → кликни клетку → напечатай слово зверя: «ёжик», «олень»… Цель: 6 жильцов.',
+  22: 'Кликни пустую клетку и напечатай предложение: с ЗАГЛАВНОЙ буквы и с ТОЧКОЙ в конце. Пример: «Мама мыла раму.» Цель: 5 предложений.',
+  23: 'Депеши — фразы из трёх слов, печатай целиком на пустой клетке. Цель: 4 депеши.',
+  24: 'Серия: 3 команды подряд без ошибок → можно «салют»! Ошибся — серия сгорает, начинай заново. Цель: 3 салюта.',
+  25: '«пилить бревна» → «верстак» → кликни верстак и напечатай слово, которое просит горожанин. Цель: 10 слов.',
+  26: 'Слова падают сверху — печатай их и жми Enter, пока не долетели до земли. Проиграть нельзя! Цель: 15 слов.',
+  27: 'Ночь: клавиатура-подсказка почти не светится — печатай по памяти! Грядки и сорняки — как в огороде. Цель: 16 овощей.',
+  28: 'Слова-вагоны: печатай подряд — поезд едет дальше с каждым словом. Цель: 12 вагонов.',
+  29: 'Финальный забег: булыжники, брёвна, щебень → дом, два моста, дороги и город. Всё, чему ты научился.',
+  30: 'Город мечты: построй дом и собери всю коллекцию украшений — фонтан, 2 клумбы, качели, 2 ёлки. Материалы — из гор и леса.',
+};
+
+// ---------- ОБУЧЕНИЯ НОВЫХ МЕХАНИК ----------
+// Как туториалы уровней 1–2: затемнение + подсветка зоны + короткие шаги.
+// Показывается один раз на игрока (сейв), в демо — всегда.
+// Ключ — номер уровня, который ВВОДИТ механику.
+const TUTORIALS = {
+  3: [
+    { text: 'Горы уже стоят — кликни гору в3', cell: [2, 2], check: () => selected && selected.col === 2 && selected.row === 2 },
+    { text: 'Напечатай: колоть булыжник', input: true, check: () => input.value.trim().toLowerCase() === 'колоть булыжник' },
+    { text: 'Enter — каменотёс понёс булыжники', input: true, check: () => (resources['булыжники'] || 0) > 0 },
+    { text: '«дробить щебень» даёт щебень — цель: 30 и 6', input: true, check: () => (resources['щебень'] || 0) > 0 },
+  ],
+  4: [
+    { text: 'Кликни клетку а1 и посади «сад»', cell: [0, 0], check: () => !!objs['а1'] },
+    { text: 'Фрукты зреют — жди полоску на саде', input: true, check: () => gardenStage(objs['а1'] || null) === 'ripe' },
+    { text: 'Кликни сад а1 → «собрать фрукты»', chip: 'собрать фрукты', check: () => (resources['фрукты'] || 0) > 0 },
+    { text: 'Фрукты портятся! Посади сад а2', cell: [0, 1], check: () => Object.values(objs).filter(o => o.kind === 'apple').length >= 2 },
+  ],
+  5: [
+    { text: 'Кликни клетку а1 и посади «поле»', cell: [0, 0], check: () => !!objs['а1'] },
+    { text: 'Грядка растёт 6 секунд — жди полоску', input: true, check: () => fieldStage(objs['а1'] || null) === 'ripe' },
+    { text: 'Спелая грядка: «жать пшеницу»', chip: 'жать пшеницу', check: () => (resources['пшеница'] || 0) > 0 },
+    { text: 'Новое «поле» → «косить сено» (цель 8)', input: true, check: () => (resources['сено'] || 0) > 0 },
+  ],
+  6: [
+    { text: 'Товара нет — вырасти сам! Кликни а1 → «сад»', cell: [0, 0], check: () => !!objs['а1'] },
+    { text: 'Кликни б1 → «поле»', cell: [1, 0], check: () => !!objs['б1'] },
+    { text: 'Собери фрукты и пшеницу, когда созреют', input: true, check: () => (resources['фрукты'] || 0) > 0 && (resources['пшеница'] || 0) > 0 },
+    { text: 'Лавка в центре — кликни г4', cell: [3, 3], check: () => selected && selected.col === 3 && selected.row === 3 },
+    { text: 'У лавки: «продать фрукт» — монеты твои', chip: 'продать фрукт', check: () => (resources['монеты'] || 0) > 0 },
+  ],
+  7: [
+    { text: '«река» отводит воду от моря — клетка б1', cell: [1, 0], check: () => objs['б1'] && objs['б1'].kind === 'water' },
+    { text: 'Кликни лес й3 → «пилить бревна»', cell: [10, 2], check: () => (resources['бревна'] || 0) > 0 },
+    { text: 'Кликни реку → «мост» (2 бревна)', chip: 'мост', check: () => Object.values(objs).some(o => o.kind === 'bridge') },
+    { text: 'В море: «удить» — рыба. Цель: 16 рыб, 4 моста', input: true, check: () => (resources['рыба'] || 0) > 0 },
+  ],
+  8: [
+    { text: 'Кликни клетку моря слева', cell: [0, 0], check: () => selected && selected.col === 0 && selected.row === 0 },
+    { text: 'Слово в панели — набери его и Enter', input: true, check: () => (resources['рыба'] || 0) > 0 },
+    { text: 'Слово = рыба! Ловите, пока не 8', input: true, check: () => (resources['рыба'] || 0) >= 3 },
+  ],
+  9: [
+    { text: 'Кликни гору д4 → «дробить щебень»', cell: [4, 3], check: () => (resources['щебень'] || 0) > 0 },
+    { text: 'Кликни пустую клетку б4 — старт дороги', cell: [3, 3], check: () => selected && selected.col === 3 && selected.row === 3 },
+    { text: 'Напечатай «дорога» — игра ждёт конец пути', input: true, check: () => roadFrom !== null || Object.values(objs).some(o => o.kind === 'road') },
+    { text: 'Кликни б10 — дорога построится сама', cell: [3, 9], check: () => Object.values(objs).some(o => o.kind === 'road') },
+  ],
+  12: [
+    { text: 'Заказ в панели: напечатай адрес — в3', input: true, check: () => input.value.trim().toLowerCase().includes('в3') || (resources['письмо'] || 0) > 0 },
+    { text: 'Печатай: письмо в3', input: true, check: () => (resources['письмо'] || 0) > 0 },
+    { text: 'Адрес внутри команды! Доставь 8 писем', input: true, check: () => (resources['письмо'] || 0) >= 3 },
+  ],
+  13: [
+    { text: 'Материалы свои: «колоть булыжник» с д2', cell: [4, 1], check: () => (resources['булыжники'] || 0) > 0 },
+    { text: '«пилить бревна» с леса е5', cell: [5, 4], check: () => (resources['бревна'] || 0) > 0 },
+    { text: 'Пустая клетка → «дом» (6 бул. + 4 брёв.)', input: true, check: () => Object.values(objs).some(o => o.kind === 'house') },
+  ],
+  14: [
+    { text: '«поле» посади — пшеница для теста', input: true, check: () => Object.values(objs).some(o => o.kind === 'field') },
+    { text: '«печка» на пустой клетке (4 бул. с д2)', input: true, check: () => Object.values(objs).some(o => o.kind === 'oven') },
+    { text: 'Кликни печку → «испечь»: 2 пшеницы + дрова', chip: 'испечь', check: () => (resources['хлеб'] || 0) > 0 },
+  ],
+  15: [
+    { text: '«пилить бревна» с е5 — копи брёвна', cell: [5, 4], check: () => (resources['бревна'] || 0) >= 10 },
+    { text: 'Лимит 20! Больше не влезает 🔒', input: true, check: () => (resources['бревна'] || 0) >= 18 },
+    { text: '«сарай» поднимает лимит на 10 — строй', input: true, check: () => Object.values(objs).some(o => o.kind === 'shed') },
+  ],
+  17: [
+    { text: '«грядка» — посади овощи', input: true, check: () => Object.values(objs).some(o => o.kind === 'bed') },
+    { text: 'Сорняк лезет! Кликни его → «полоть»', input: true, check: () => !Object.values(objs).some(o => o.kind === 'weed') },
+    { text: 'Спелую грядку «собрать» — цель 24', input: true, check: () => (resources['овощи'] || 0) > 0 },
+  ],
+  18: [
+    { text: '«грядка» — тепличная, 10 овощей', input: true, check: () => Object.values(objs).some(o => o.kind === 'bed') },
+    { text: '«собрать» — грядка отрастёт сама!', chip: 'собрать', check: () => (resources['овощи'] || 0) > 0 },
+    { text: 'Сорняки чаще: полоти и собирай до 40', input: true, check: () => (resources['овощи'] || 0) >= 20 },
+  ],
+  21: [
+    { text: '«клетка» строится за булыжники с д2', cell: [4, 1], check: () => (resources['булыжники'] || 0) > 0 },
+    { text: 'Построй «клетку» на пустой клетке', input: true, check: () => Object.values(objs).some(o => o.kind === 'cage') },
+    { text: 'Кликни клетку → напечатай слово зверя', input: true, check: () => (resources['животные'] || 0) > 0 },
+  ],
+  22: [
+    { text: 'Кликни пустую клетку — парту', cell: [0, 0], check: () => selected && selected.col === 0 && selected.row === 0 },
+    { text: 'Печатай предложение: заглавная и точка!', input: true, check: () => (resources['предложение'] || 0) > 0 },
+    { text: 'Shift + точка обязательны — цель 5', input: true, check: () => (resources['предложение'] || 0) >= 2 },
+  ],
+  24: [
+    { text: '«флаг» на пустой клетке — шаг серии', input: true, check: () => Object.values(objs).some(o => o.kind === 'flag') },
+    { text: '3 команды подряд без ошибок — серия!', input: true, check: () => streak >= 3 },
+    { text: 'Теперь «салют» на пустой клетке', chip: 'салют', check: () => (resources['салют'] || 0) > 0 },
+  ],
+  25: [
+    { text: '«пилить бревна» с леса д2', cell: [4, 1], check: () => (resources['бревна'] || 0) > 0 },
+    { text: '«верстак» — 2 бревна', input: true, check: () => Object.values(objs).some(o => o.kind === 'bench') },
+    { text: 'Кликни верстак → напечатай слово', input: true, check: () => (resources['слово'] || 0) > 0 },
+  ],
+};
+
 // Эталонные решения для автотестов (test/harness.js, открывается с ?test=1).
 // Одновременно документация замысла уровня: минимальный путь к цели.
 // Шаг: {cell:'а1', cmd:'слово'} | {cells:['б4','б10'], cmd:'дорога'}
@@ -691,6 +825,8 @@ function applyLevel(i) {
   levelIdx = i;
   const base = LEVELS[i];
   LVL = Object.assign({}, base);
+  LVL.hint = HINTS[i + 1] || '';
+  if (!LVL.tutorial && TUTORIALS[i + 1]) LVL.tutorial = TUTORIALS[i + 1];
   // Скиллы: команды пройденных уровней остаются у игрока навсегда —
   // «открыл сажать лес» значит можно сажать везде дальше.
   const extra = [];
@@ -838,6 +974,7 @@ let hover = null;
 let selected = null;
 let selected2 = null;
 let roadFrom = null; // точка старта дороги: ждём клик по конечной точке
+let hintOpen = false, hintBtn = null; // кружок «?» — подсказка уровня
 let kbTarget = null;
 let kbClose = null;
 let kbRect = null; // зона клавиатуры-подсказки (для подсветки в обучении)
@@ -1186,7 +1323,7 @@ function reset() {
   stats = { typed: 0, ok: 0, err: 0, built: 0, stumpsMade: 0, stumpsCleared: 0, sold: {}, startT: performance.now() };
   for (const g of LVL.goal) if (g.res) resources[g.res] = 0;
   if (LVL.start) for (const k in LVL.start) resources[k] = LVL.start[k];
-  selected = null; selected2 = null; roadFrom = null; kbTarget = null;
+  selected = null; selected2 = null; roadFrom = null; kbTarget = null; hintOpen = false;
   orderIdx = 0; weedAcc = 0; playT = 0; stumpTold = false;
   streak = 0; hintUses = 0; bubbles = []; bubAcc = 0; wordIdx = 0;
   lockedPick = -1; poppedBubbles = 0;
@@ -3029,6 +3166,14 @@ function drawPanel() {
   ctx.strokeStyle = '#3d8a5f'; ctx.lineWidth = 2; ctx.stroke();
   ctx.fillStyle = '#eaffea'; ctx.font = 'bold 16px Segoe UI'; ctx.textAlign = 'center';
   ctx.fillText('⌂ карта', menuBtn.x + menuBtn.w / 2, menuBtn.y + 22);
+  // кружок «?» — подсказка уровня (открывается кликом, закрывается Esc)
+  hintBtn = { x: menuBtn.x - 40, y: menuBtn.y, w: 32, h: menuBtn.h };
+  ctx.beginPath();
+  ctx.arc(hintBtn.x + 16, hintBtn.y + 16, 15, 0, Math.PI * 2);
+  ctx.fillStyle = hintOpen ? '#ffe066' : '#245c3d'; ctx.fill();
+  ctx.strokeStyle = hintOpen ? '#7a6516' : '#3d8a5f'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = hintOpen ? '#17382a' : '#ffe066'; ctx.font = 'bold 18px Segoe UI';
+  ctx.fillText('?', hintBtn.x + 16, hintBtn.y + 23);
   ctx.textAlign = 'left';
   ctx.font = '18px Segoe UI'; ctx.fillStyle = '#b9e4bd';
   ctx.fillText('Поле ' + N + '×' + N + ' (а–' + LETTERS[N - 1] + ', 1–' + N + ') · ' + goalStr(), E.subtitle.x, E.subtitle.y);
@@ -3213,8 +3358,35 @@ function drawPanel() {
   ctx.fillText('Ячейка: ' + sel + ' · Введи команду и нажми Enter:', E.cell_prompt.x, E.cell_prompt.y);
 }
 
-function drawWin() {
-  const allDone = levelIdx >= LEVELS.length - 1;
+// подсказка уровня «?»: тёмный планшет с текстом, Esc или клик — закрыть
+function drawHint() {
+  if (!hintOpen || state === 'menu' || state === 'win') return;
+  ctx.fillStyle = 'rgba(4,12,8,0.66)'; ctx.fillRect(0, 0, W, H);
+  const px = 250, pw = W - 500, title = 'ПОДСКАЗКА · ' + (LVL.icon || '') + ' ' + LVL.name;
+  ctx.font = 'bold 22px Segoe UI';
+  const lines = [];
+  // перенос слов по ширине панели
+  for (const para of String(LVL.hint || '').split(' ')) {
+    const last = lines.length - 1;
+    const probe = last >= 0 ? lines[last] + ' ' + para : para;
+    if (last >= 0 && ctx.measureText(probe).width > pw - 56) lines.push(para);
+    else if (last >= 0) lines[last] = probe;
+    else lines.push(para);
+  }
+  const lh = 32, ph = 92 + lines.length * lh;
+  const py = Math.max(60, (H - ph) / 2);
+  ctx.fillStyle = '#0e2418'; rr(px, py, pw, ph, 16);
+  ctx.strokeStyle = '#ffe066'; ctx.lineWidth = 3; ctx.stroke();
+  ctx.fillStyle = '#ffe066'; ctx.textAlign = 'center';
+  ctx.fillText(title, px + pw / 2, py + 40);
+  ctx.fillStyle = '#eaffea'; ctx.font = '17px Segoe UI';
+  lines.forEach((ln, i) => ctx.fillText(ln, px + pw / 2, py + 76 + i * lh));
+  ctx.fillStyle = '#9dbfa5'; ctx.font = '14px Segoe UI';
+  ctx.fillText('Esc или клик — закрыть', px + pw / 2, py + ph - 18);
+  ctx.textAlign = 'left';
+}
+
+function drawWin() {  const allDone = levelIdx >= LEVELS.length - 1;
   ctx.fillStyle = 'rgba(6,20,12,0.85)'; ctx.fillRect(0, 0, W, H);
   ctx.textAlign = 'center';
   ctx.fillStyle = '#ffe066'; ctx.font = 'bold 52px Segoe UI';
@@ -3321,6 +3493,7 @@ function draw() {
   }
   drawPanel();
   if (state === 'play') drawTutorial();
+  drawHint();
   if (state === 'win') drawWin();
   if (demo && demo.on) drawDemoOverlay();
 }
@@ -3349,7 +3522,8 @@ input.addEventListener('keydown', e => {
   }
   if (e.key === 'Enter') { submit(); e.preventDefault(); }
   if (e.key === 'Escape') {
-    if (state === 'win') { state = 'menu'; mapCenterOn(mapFrontier()); }
+    if (hintOpen) hintOpen = false;
+    else if (state === 'win') { state = 'menu'; mapCenterOn(mapFrontier()); }
     else if (state === 'shop' || state === 'parents' || state === 'settings' || state === 'city') state = 'menu';
     else if (kbTarget) kbTarget = null;
     else if (selected2) selected2 = null;
@@ -3525,6 +3699,11 @@ canvas.addEventListener('click', e => {
     state = 'menu'; mapCenterOn(mapFrontier()); beep(400, 0.08, 'triangle');
     return;
   }
+  if (hintBtn && p.x >= hintBtn.x && p.x <= hintBtn.x + hintBtn.w && p.y >= hintBtn.y && p.y <= hintBtn.y + hintBtn.h) {
+    hintOpen = !hintOpen; beep(hintOpen ? 700 : 500, 0.07, 'triangle');
+    return;
+  }
+  if (hintOpen) { hintOpen = false; return; } // подсказка открыта — любой клик её закрывает
   if (kbClose && p.x >= kbClose.x && p.x <= kbClose.x + kbClose.w && p.y >= kbClose.y && p.y <= kbClose.y + kbClose.h) {
     kbTarget = null; input.focus(); return;
   }
