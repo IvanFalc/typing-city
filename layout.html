@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Верстак раскладки — Печатный Город</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #10241a; color: #dcefe2; font: 14px/1.4 'Segoe UI', sans-serif; }
+  header { display: flex; gap: 10px; align-items: center; padding: 10px 14px; background: #0c1c13; border-bottom: 1px solid #245c3d; flex-wrap: wrap; }
+  header b { font-size: 16px; }
+  button { background: #245c3d; color: #eaffea; border: 1px solid #3d8a5f; border-radius: 8px; padding: 7px 14px; font: bold 14px 'Segoe UI'; cursor: pointer; }
+  button:hover { background: #2e6c46; }
+  button.warn { background: #5c3d24; border-color: #8a5f3d; }
+  #status { color: #9dbfa5; }
+  #main { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; }
+  /* сцена 1280×720, масштабируется под окно */
+  #stageWrap { flex: 1 1 auto; min-width: 0; }
+  #stage { position: relative; width: 1280px; height: 720px; background: #0e2418; border-radius: 12px; transform-origin: 0 0; overflow: hidden;
+           background-image: linear-gradient(rgba(61,138,95,.12) 1px, transparent 1px), linear-gradient(90deg, rgba(61,138,95,.12) 1px, transparent 1px);
+           background-size: 40px 40px; }
+  #panelShade { position: absolute; left: 714px; top: 0; width: 566px; height: 720px; background: rgba(38,50,56,.30); border-left: 2px dashed #3d8a5f; pointer-events: none; }
+  #panelShade span { position: absolute; right: 8px; top: 6px; color: #6f9b7d; font-size: 12px; }
+  .gridfield { position: absolute; left: 34px; top: 44px; width: 640px; height: 640px; border: 1px solid rgba(61,138,95,.35); border-radius: 8px;
+               display: grid; grid-template-columns: repeat(5, 1fr); pointer-events: none; }
+  .gridfield i { border: 1px solid rgba(61,138,95,.18); }
+  .el { position: absolute; background: rgba(36,92,61,.55); border: 2px solid #3d8a5f; border-radius: 8px; cursor: grab;
+        display: flex; align-items: flex-start; padding: 2px 6px; user-select: none; }
+  .el .name { font-size: 11px; font-weight: bold; color: #ffe066; white-space: nowrap; pointer-events: none; }
+  .el.selected { border-color: #ffe066; background: rgba(255,224,102,.18); z-index: 5; }
+  .el.auto { border-style: dashed; background: rgba(38,166,154,.16); cursor: default; }
+  .el.demo { border-color: #b39ddb; background: rgba(179,157,219,.14); }
+  .el.demo .name { color: #d1c4e9; }
+  /* свойства */
+  #props { flex: 0 0 265px; background: #0c1c13; border: 1px solid #245c3d; border-radius: 10px; padding: 12px; }
+  #props h3 { margin: 0 0 4px; font-size: 15px; color: #ffe066; }
+  #props .hint { color: #9dbfa5; font-size: 12px; margin-bottom: 10px; }
+  .row { display: flex; justify-content: space-between; align-items: center; margin: 6px 0; }
+  .row label { color: #b9e4bd; }
+  .row input { width: 90px; background: #123425; color: #eaffea; border: 1px solid #3d8a5f; border-radius: 6px; padding: 4px 8px; font: 13px 'Segoe UI'; }
+  #legend { margin-top: 14px; font-size: 12px; color: #9dbfa5; line-height: 1.5; }
+</style>
+</head>
+<body>
+<header>
+  <b>Верстак раскладки</b>
+  <span style="color:#9dbfa5">тащи элементы мышью · выделяй · правь цифрами</span>
+  <button id="save">💾 Сохранить</button>
+  <button id="download">⬇ Скачать layout.json</button>
+  <button id="reset" class="warn">↺ Дефолты</button>
+  <span id="status"></span>
+</header>
+<div id="main">
+  <div id="stageWrap"><div id="stage">
+    <div id="panelShade"><span>панель игры (x = 714)</span></div>
+    <div class="gridfield"></div>
+  </div></div>
+  <div id="props">
+    <h3 id="propTitle">Элемент не выбран</h3>
+    <div class="hint" id="propHint">Кликни по элементу на схеме.</div>
+    <div id="fields"></div>
+    <div id="legend">
+      <b style="color:#b9e4bd">Как это работает</b><br>
+      • У каждого элемента — своя зона; наложений нет, если зоны не пересекаются.<br>
+      • <i>Клавиатура</i> — всплывающая: место под неё не задаётся. Когда она открыта,
+      список команд, журнал и статистика скрываются, и клавиатура занимает всё
+      освобождённое пространство до строки ввода.<br>
+      • Для текстовых элементов <b>y</b> — базовая линия текста (низ букв).<br>
+      • «Сохранить» пишет layout.json на сервер (python server.py); если сервера нет —
+      скачай файл и положи его в папку игры рядом с index.html.<br>
+      • Демо-элементы видны только в режиме ?demo=N, но настраиваются здесь.
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+// ---- дефолты: зеркальная копия DEFAULT_LAYOUT из game.js ----
+const DEFAULTS = {
+  panel: { width: 530 },
+  elements: {
+    title_level:  { x: 730, y: 46 },
+    btn_map:      { x: 1150, y: 22, w: 110, h: 32 },
+    subtitle:     { x: 730, y: 76 },
+    wallet:       { x: 730, y: 102 },
+    goals:        { x: 730, y: 114, stride: 38, barH: 30 },
+    stars:        { x: 730, y: 278 },
+    commands:     { x: 730, titleY: 318, bottom: 466 },
+    journal:      { x: 730, labelY: 486, y: 496, h: 68 },
+    stats:        { x: 730, y: 586 },
+    cell_prompt:  { x: 730, y: 608 },
+    input_line:   { x: 730, y: 616, w: 496, h: 54 },
+    demo_banner:  { x: 16, y: 62, w: 540, h: 60 },
+    demo_controls:{ x: 16, y: 664, h: 44 },
+  },
+};
+// ---- описание элементов: подпись, размеры бокса, редактируемые поля ----
+const META = {
+  title_level:  { label: 'Заголовок уровня', box: e => [e.x, e.y - 26, 400, 30], fields: ['x', 'y'] },
+  btn_map:      { label: 'Кнопка «⌂ карта»', box: e => [e.x, e.y, e.w, e.h], fields: ['x', 'y', 'w', 'h'] },
+  subtitle:     { label: 'Строка поля и цели', box: e => [e.x, e.y - 20, 520, 24], fields: ['x', 'y'] },
+  wallet:       { label: 'Кошелёк ресурсов', box: e => [e.x, e.y - 18, 520, 22], fields: ['x', 'y'] },
+  goals:        { label: 'Бары целей (макс. 4)', box: e => [e.x, e.y, 530, 4 * e.stride], fields: ['x', 'y', 'stride', 'barH'] },
+  stars:        { label: 'Статус звёзд', box: e => [e.x, e.y - 18, 520, 44], fields: ['x', 'y'] },
+  commands:     { label: 'Команды: заголовок + список', box: e => [e.x, e.titleY - 20, 530, e.bottom - e.titleY + 20], fields: ['x', 'titleY', 'bottom'] },
+  journal:      { label: 'Журнал событий', box: e => [e.x, e.labelY - 16, 530, e.y + e.h - e.labelY + 16], fields: ['x', 'labelY', 'y', 'h'] },
+  stats:        { label: 'Строка статистики', box: e => [e.x, e.y - 16, 520, 20], fields: ['x', 'y'] },
+  cell_prompt:  { label: 'Подсказка ввода', box: e => [e.x, e.y - 18, 520, 22], fields: ['x', 'y'] },
+  input_line:   { label: 'Строка ввода (DOM)', box: e => [e.x, e.y, e.w, e.h], fields: ['x', 'y', 'w', 'h'] },
+  keyboard:     { label: 'Клавиатура (авто-зона)', auto: true },
+  demo_banner:  { label: 'ДЕМО-баннер', box: e => [e.x, e.y, e.w, e.h], fields: ['x', 'y', 'w', 'h'], demo: true },
+  demo_controls:{ label: 'Кнопки ДЕМО', box: e => [e.x, e.y, 570, e.h], fields: ['x', 'y', 'h'], demo: true },
+};
+const FIELD_HINTS = {
+  titleY: 'базовая линия заголовка; список начинается ниже (+8)',
+  bottom: 'нижняя граница списка команд',
+  labelY: 'базовая линия метки «ЖУРНАЛ:»',
+  stride: 'шаг между барами целей',
+  barH: 'высота бара',
+};
+
+let LAYOUT = JSON.parse(JSON.stringify(DEFAULTS));
+let selected = null;
+const stage = document.getElementById('stage');
+const statusEl = document.getElementById('status');
+
+function say(msg, isErr) {
+  statusEl.textContent = msg;
+  statusEl.style.color = isErr ? '#ff8a80' : '#9dbfa5';
+  clearTimeout(say.t);
+  say.t = setTimeout(() => { statusEl.textContent = ''; }, 5000);
+}
+
+// ---- отрисовка схемы ----
+function render() {
+  stage.querySelectorAll('.el').forEach(n => n.remove());
+  const E = LAYOUT.elements;
+  // клавиатура: авто-зона от заголовка команд до строки ввода
+  const kb = document.createElement('div');
+  kb.className = 'el auto';
+  kb.style.left = E.commands.x + 'px';
+  kb.style.top = (E.commands.titleY + 12) + 'px';
+  kb.style.width = LAYOUT.panel.width + 'px';
+  kb.style.height = Math.max(0, E.cell_prompt.y - E.commands.titleY - 12) + 'px';
+  kb.innerHTML = '<span class="name">⌨ keyboard — занимает освободившееся место</span>';
+  stage.appendChild(kb);
+  for (const id in META) {
+    if (META[id].auto) continue;
+    const e = E[id];
+    const [bx, by, bw, bh] = META[id].box(e);
+    const d = document.createElement('div');
+    d.className = 'el' + (META[id].demo ? ' demo' : '') + (id === selected ? ' selected' : '');
+    d.dataset.id = id;
+    d.style.left = bx + 'px'; d.style.top = by + 'px';
+    d.style.width = bw + 'px'; d.style.height = bh + 'px';
+    d.innerHTML = '<span class="name">' + META[id].label + '</span>';
+    d.addEventListener('pointerdown', ev => startDrag(ev, id));
+    stage.appendChild(d);
+  }
+  renderProps();
+}
+
+// ---- перетаскивание ----
+let drag = null;
+const VKEYS = ['y', 'titleY', 'labelY'];
+function startDrag(ev, id) {
+  selected = id; render();
+  const e = LAYOUT.elements[id];
+  drag = {
+    id,
+    sx: ev.clientX, sy: ev.clientY,
+    ox: e.x,
+    v0: VKEYS.filter(k => k in e).map(k => [k, e[k]]),
+    top0: META[id].box(e)[1],
+  };
+  const box = ev.currentTarget;
+  box.setPointerCapture(ev.pointerId);
+  box.addEventListener('pointermove', onDrag);
+  box.addEventListener('pointerup', endDrag, { once: true });
+}
+function onDrag(ev) {
+  if (!drag) return;
+  const scale = stage.getBoundingClientRect().width / 1280;
+  const nx = Math.round(drag.ox + (ev.clientX - drag.sx) / scale);
+  const nTop = Math.round(drag.top0 + (ev.clientY - drag.sy) / scale);
+  const e = LAYOUT.elements[drag.id];
+  e.x = Math.max(0, Math.min(1240, nx));
+  const delta = nTop - drag.top0;
+  for (const [k, v] of drag.v0) e[k] = Math.max(0, Math.round(v + delta));
+  render();
+}
+function endDrag() {
+  drag = null;
+  saveLocal();
+}
+
+// ---- панель свойств ----
+function renderProps() {
+  const title = document.getElementById('propTitle');
+  const hint = document.getElementById('propHint');
+  const fields = document.getElementById('fields');
+  fields.innerHTML = '';
+  if (!selected) return;
+  const e = LAYOUT.elements[selected];
+  title.textContent = META[selected].label;
+  hint.textContent = selected === 'keyboard' ? 'Зона вычисляется автоматически.' : 'id: ' + selected;
+  for (const f of (META[selected].fields || [])) {
+    const row = document.createElement('div');
+    row.className = 'row';
+    const lab = document.createElement('label');
+    lab.textContent = f + (FIELD_HINTS[f] ? ' — ' + FIELD_HINTS[f] : '');
+    const inp = document.createElement('input');
+    inp.type = 'number'; inp.value = e[f];
+    inp.addEventListener('change', () => {
+      e[f] = Number(inp.value) || 0;
+      saveLocal(); render();
+    });
+    row.appendChild(lab); row.appendChild(inp);
+    fields.appendChild(row);
+  }
+}
+
+// ---- сохранение ----
+function saveLocal() {
+  try { localStorage.setItem('layout_draft', JSON.stringify(LAYOUT)); } catch (e) {}
+}
+function payload() {
+  return JSON.stringify(LAYOUT, null, 2);
+}
+document.getElementById('save').addEventListener('click', async () => {
+  try {
+    const r = await fetch('/api/layout', { method: 'POST', body: payload() });
+    const j = await r.json();
+    if (j.ok) { say('✅ Сохранено в layout.json — обнови игру (F5)'); return; }
+    throw new Error(j.error || 'сервер отказал');
+  } catch (e) {
+    download();
+    say('Сервера нет (' + e.message + ') — файл скачан. Положи его в папку игры.', true);
+  }
+});
+function download() {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([payload()], { type: 'application/json' }));
+  a.download = 'layout.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+document.getElementById('download').addEventListener('click', download);
+document.getElementById('reset').addEventListener('click', () => {
+  LAYOUT = JSON.parse(JSON.stringify(DEFAULTS));
+  selected = null;
+  saveLocal(); render(); say('Вернул дефолтную раскладку (не забудь сохранить)');
+});
+
+// ---- старт: подхватываем текущий layout.json, иначе черновик/дефолты ----
+(async function init() {
+  try {
+    const r = await fetch('layout.json', { cache: 'no-store' });
+    if (r.ok) {
+      const j = await r.json();
+      LAYOUT = mergeDeep(JSON.parse(JSON.stringify(DEFAULTS)), j);
+      say('Загружен текущий layout.json');
+    }
+  } catch (e) { say('layout.json не найден — работаем с дефолтами'); }
+  try {
+    const draft = localStorage.getItem('layout_draft');
+    if (draft) LAYOUT = mergeDeep(LAYOUT, JSON.parse(draft));
+  } catch (e) {}
+  render();
+})();
+function mergeDeep(base, over) {
+  for (const k in (over || {})) {
+    if (over[k] && typeof over[k] === 'object' && !Array.isArray(over[k]))
+      base[k] = mergeDeep(base[k] && typeof base[k] === 'object' ? base[k] : {}, over[k]);
+    else base[k] = over[k];
+  }
+  return base;
+}
+
+// ---- масштабирование сцены под окно ----
+function fit() {
+  const wrap = document.getElementById('stageWrap');
+  const s = Math.min(1, (wrap.clientWidth) / 1280, (window.innerHeight - 90) / 720);
+  stage.style.transform = 'scale(' + s + ')';
+  stage.style.marginBottom = (720 * s - 720) + 'px';
+}
+window.addEventListener('resize', fit);
+fit();
+</script>
+</body>
+</html>

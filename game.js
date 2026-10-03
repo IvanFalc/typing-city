@@ -13,6 +13,46 @@ const PANEL_X = 714;
 const BURN_TIME = 1.5, BOOM_TIME = 0.9;
 const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
+// ---------- РАСКЛАДКА ПАНЕЛИ ----------
+// Каждому элементу — своя зона; координаты текстов — базовая линия (baseline).
+// Дефолт совпадает с исторической геометрией; layout.json (верстак layout.html)
+// переопределяет значения. Клавиатура — всплывающий элемент: места под неё
+// не задаётся жёстко, она занимает освобождённое пространство
+// (список команд + журнал + статистика) до строки ввода.
+const DEFAULT_LAYOUT = {
+  panel: { width: 530 },
+  elements: {
+    title_level:  { x: 730, y: 46 },                      // «УРОВЕНЬ N: ИМЯ»
+    btn_map:      { x: 1150, y: 22, w: 110, h: 32 },      // кнопка «⌂ карта»
+    subtitle:     { x: 730, y: 76 },                      // «Поле N×N · цель»
+    wallet:       { x: 730, y: 102 },                     // кошелёк ресурсов
+    goals:        { x: 730, y: 114, stride: 38, barH: 30 }, // бары целей (до 4)
+    stars:        { x: 730, y: 278 },                     // ★-линия; пояснение +20
+    commands:     { x: 730, titleY: 318, bottom: 466 },   // заголовок + список до bottom
+    journal:      { x: 730, labelY: 486, y: 496, h: 68 }, // «ЖУРНАЛ:» + бокс
+    stats:        { x: 730, y: 586 },                     // «Команд · точность · рабочих»
+    cell_prompt:  { x: 730, y: 608 },                     // «Ячейка: … Введи команду»
+    input_line:   { x: 730, y: 616, w: 496, h: 54 },      // DOM-строка ввода
+    demo_banner:  { x: 16, y: 62, w: 540, h: 60 },        // баннер ДЕМО
+    demo_controls:{ x: 16, y: 664, h: 44 },               // кнопки ДЕМО
+  },
+};
+let LAYOUT = DEFAULT_LAYOUT;
+function applyLayout(over) {
+  const merge = (base, o) => {
+    for (const k in (o || {})) {
+      base[k] = (o[k] && typeof o[k] === 'object' && !Array.isArray(o[k]))
+        ? merge(Array.isArray(base[k]) ? [] : Object.assign({}, base[k]), o[k])
+        : o[k];
+    }
+    return base;
+  };
+  LAYOUT = merge(Object.assign({}, DEFAULT_LAYOUT, { elements: Object.assign({}, DEFAULT_LAYOUT.elements) }), over);
+  const el = LAYOUT.elements.input_line;
+  input.style.left = el.x + 'px'; input.style.top = el.y + 'px';
+  input.style.width = el.w + 'px'; input.style.height = el.h + 'px';
+}
+
 const SINGULAR = {
   'дрова': 'дрова', 'бревна': 'бревно', 'булыжники': 'булыжник', 'щебень': 'щебень',
   'пшеница': 'пшеница', 'сено': 'сено', 'рыба': 'рыба', 'хлеб': 'хлеб', 'овощи': 'овощ', 'фрукты': 'фрукт',
@@ -2570,18 +2610,19 @@ function demoTick(dtRaw) {
 }
 function drawDemoOverlay() {
   if (!demo || !demo.on) return;
+  const D = LAYOUT.elements;
   // баннер действия
-  ctx.fillStyle = 'rgba(6,20,12,0.88)'; rr(16, 62, 540, 60, 12);
+  ctx.fillStyle = 'rgba(6,20,12,0.88)'; rr(D.demo_banner.x, D.demo_banner.y, D.demo_banner.w, D.demo_banner.h, 12);
   ctx.strokeStyle = '#ffe066'; ctx.lineWidth = 2; ctx.stroke();
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = '#ffe066'; ctx.font = 'bold 18px Segoe UI';
-  ctx.fillText('▶ ДЕМО · уровень ' + (demo.i + 1) + ': ' + LEVELS[demo.i].name, 32, 86);
+  ctx.fillText('▶ ДЕМО · уровень ' + (demo.i + 1) + ': ' + LEVELS[demo.i].name, D.demo_banner.x + 16, D.demo_banner.y + 24);
   ctx.fillStyle = '#b9e4bd'; ctx.font = '14px Segoe UI';
-  ctx.fillText(demo.msg + (demo.paused ? '   ⏸ ПАУЗА' : ''), 32, 108);
+  ctx.fillText(demo.msg + (demo.paused ? '   ⏸ ПАУЗА' : ''), D.demo_banner.x + 16, D.demo_banner.y + 46);
   // панель управления
   const defs = [['sp05', '0.5×', 58], ['sp1', '1×', 46], ['sp2', '2×', 46], ['sp4', '4×', 46], ['skip', '⏭ уровень', 122], ['pause', demo.paused ? '▶' : '⏸', 54], ['stop', '⏹ стоп', 106]];
   demoBtns = {};
-  let x = 16; const y = 664, h = 44;
+  let x = D.demo_controls.x; const y = D.demo_controls.y, h = D.demo_controls.h;
   for (const [id, label, w] of defs) {
     demoBtns[id] = { x, y, w, h };
     const active = (id === 'sp05' && demo.speed === 0.5) || (id === 'sp1' && demo.speed === 1) || (id === 'sp2' && demo.speed === 2) || (id === 'sp4' && demo.speed === 4);
@@ -2609,7 +2650,7 @@ function drawKeyboard(px, top) {
   const t = kbTarget;
   ctx.fillStyle = '#ffe066'; ctx.font = 'bold 15px Segoe UI';
   ctx.fillText('КЛАВИАТУРА — печатай: «' + t + '»', px, top);
-  kbClose = { x: px + 468, y: top - 16, w: 62, h: 20 };
+  kbClose = { x: px + LAYOUT.panel.width - 62, y: top - 16, w: 62, h: 20 };
   ctx.fillStyle = '#455a64'; rr(kbClose.x, kbClose.y, kbClose.w, kbClose.h, 6);
   ctx.fillStyle = '#eceff1'; ctx.font = '13px Segoe UI'; ctx.textAlign = 'center';
   ctx.fillText('✕ закрыть', kbClose.x + kbClose.w / 2, top - 2);
@@ -2646,7 +2687,7 @@ function drawKeyboard(px, top) {
     for (let i = 0; i < row.length; i++)
       drawKey(row[i], px + off + i * (KS + GAP), top + 12 + ri * (KS + GAP), KS, KS);
   });
-  const sw = 240, sx = px + (530 - sw) / 2, sy = top + 12 + 4 * (KS + GAP);
+  const sw = 240, sx = px + (LAYOUT.panel.width - sw) / 2, sy = top + 12 + 4 * (KS + GAP);
   drawKey(' ', sx, sy, sw, KS - 4, 'пробел');
   const nextLabel = next === ' ' ? 'пробел' : next;
   ctx.textAlign = 'left'; ctx.font = 'bold 15px Segoe UI';
@@ -2659,7 +2700,9 @@ function drawKeyboard(px, top) {
     ctx.font = '14px Segoe UI';
     ctx.fillText('· ' + logArr[0].text, px, sy + KS + 48);
   }
-  kbRect = { x: px, y: top - 22, w: 530, h: 616 - (top - 22) }; // от метки до строки ввода
+  // зона клавиатуры: от заголовка до строки ввода — список, журнал и статистика
+  // в это время скрыты, место под подсказку освобождается само
+  kbRect = { x: px, y: top - 22, w: LAYOUT.panel.width, h: LAYOUT.elements.cell_prompt.y - (top - 22) }; // от метки до строки ввода
   ctx.restore();
   return true;
 }
@@ -2933,27 +2976,24 @@ function drawMenu() {
 let chips = [];
 function drawPanel() {
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-  const px = PANEL_X + 16, pw = 530;
+  const E = LAYOUT.elements, px = PANEL_X + 16, pw = LAYOUT.panel.width;
   ctx.fillStyle = '#eaffea'; ctx.font = 'bold 26px Segoe UI';
-  ctx.fillText('УРОВЕНЬ ' + (levelIdx + 1) + ': ' + LVL.name, px, 46);
-  menuBtn = { x: px + pw - 110, y: 22, w: 110, h: 32 };
+  ctx.fillText('УРОВЕНЬ ' + (levelIdx + 1) + ': ' + LVL.name, E.title_level.x, E.title_level.y);
+  menuBtn = { x: E.btn_map.x, y: E.btn_map.y, w: E.btn_map.w, h: E.btn_map.h };
   ctx.fillStyle = '#245c3d'; rr(menuBtn.x, menuBtn.y, menuBtn.w, menuBtn.h, 8);
   ctx.strokeStyle = '#3d8a5f'; ctx.lineWidth = 2; ctx.stroke();
   ctx.fillStyle = '#eaffea'; ctx.font = 'bold 16px Segoe UI'; ctx.textAlign = 'center';
   ctx.fillText('⌂ карта', menuBtn.x + menuBtn.w / 2, menuBtn.y + 22);
   ctx.textAlign = 'left';
   ctx.font = '18px Segoe UI'; ctx.fillStyle = '#b9e4bd';
-  ctx.fillText('Поле ' + N + '×' + N + ' (а–' + LETTERS[N - 1] + ', 1–' + N + ') · ' + goalStr(), px, 76);
+  ctx.fillText('Поле ' + N + '×' + N + ' (а–' + LETTERS[N - 1] + ', 1–' + N + ') · ' + goalStr(), E.subtitle.x, E.subtitle.y);
 
   const wallet = LVL.wallet && LVL.wallet.length;
   if (wallet) {
     ctx.fillStyle = '#ffe082'; ctx.font = '16px Segoe UI';
-    ctx.fillText(LVL.wallet.map(k => k + ' ' + (resources[k] || 0)).join('   ·   '), px, 102);
+    ctx.fillText(LVL.wallet.map(k => k + ' ' + (resources[k] || 0)).join('   ·   '), E.wallet.x, E.wallet.y);
   }
-  const goalTop = wallet ? 114 : 92;
-  const compact = wallet || LVL.noStumps;
-  const goalStride = compact ? 38 : 48;
-  const barH = compact ? 30 : 42;
+  const goalTop = E.goals.y, goalStride = E.goals.stride, barH = E.goals.barH;
   const cols = ['#8bc34a', '#4db6ac', '#ffb74d'];
   LVL.goal.forEach((g, i) => {
     const y = goalTop + i * goalStride;
@@ -2979,15 +3019,14 @@ function drawPanel() {
   }
 
   // ---- живой статус звёзд: видно, что ещё выполнимо и почему ----
-  const afterGoals = goalTop + (LVL.goal.length + (LVL.noStumps ? 1 : 0)) * goalStride;
   const crit = starForecast();
   const acc = accPct();
   const needB = bubblesNeed();
   const starLine1 = crit.map(ok => (ok ? '★' : '☆')).join('');
   ctx.fillStyle = '#ffe066'; ctx.font = 'bold 18px Segoe UI';
-  ctx.fillText(starLine1, px, afterGoals + 20);
+  ctx.fillText(starLine1, E.stars.x, E.stars.y);
   ctx.fillStyle = '#9dbfa5'; ctx.font = 'bold 12px Segoe UI';
-  ctx.fillText('ЗВЁЗДЫ', px + 118, afterGoals + 19);
+  ctx.fillText('ЗВЁЗДЫ', E.stars.x + 118, E.stars.y - 1);
   // пояснения: что не хватает для 5★
   const bits = [];
   bits.push((crit[1] ? '✓' : '✗') + ' точность ' + acc + '% (85)');
@@ -2995,8 +3034,8 @@ function drawPanel() {
   bits.push((crit[3] ? '✓' : '✗') + ' подсказки ' + hintUses);
   bits.push((crit[4] ? '✓' : '✗') + ' пузыри ' + poppedBubbles + '/' + needB);
   ctx.fillStyle = crit.every(Boolean) ? '#7ee787' : '#b9e4bd'; ctx.font = '13px Segoe UI';
-  ctx.fillText(bits.join(' · '), px, afterGoals + 40);
-  const cmdTop = afterGoals + 56;
+  ctx.fillText(bits.join(' · '), E.stars.x, E.stars.y + 20);
+  const cmdTop = E.commands.titleY;
 
   let title, list = [];
   const order = LVL.orders && orderIdx < LVL.orders.length ? LVL.orders[orderIdx] : null;
@@ -3029,37 +3068,48 @@ function drawPanel() {
     title = 'ОТРЕЗОК ' + cellName(selected.col, selected.row) + ' → ' + cellName(selected2.col, selected2.row);
   }
   ctx.fillStyle = '#9dbfa5'; ctx.font = 'bold 15px Segoe UI';
-  ctx.fillText(title + (selected && list.length && !order ? ' (клик — клавиатура)' : ''), px, cmdTop);
-  // ---- низ панели: зоны жёстко закреплены, элементы не наезжают друг на друга ----
-  // 466 — низ списка команд · 486/496–564 — журнал · 586 — статистика · 608 — подсказка ввода
-  const CHIPS_BOTTOM = 466;
+  ctx.fillText(title + (selected && list.length && !order ? ' (клик — клавиатура)' : ''), E.commands.x, cmdTop);
+  // ---- низ панели: зоны жёстко закреплены (layout.json), элементы не наезжают ----
+  const CHIPS_BOTTOM = E.commands.bottom;
   let listTop = cmdTop + 8;
   let kbOpen = false;
   if (kbTarget) {
-    kbOpen = drawKeyboard(px, listTop); // клавиатура рисуется ВМЕСТО списка — иначе выталкивала всё за край
+    // клавиатура рисуется ВМЕСТО списка+журнала; заголовок — своей строкой
+    // ниже заголовка списка, чтобы не слипались
+    kbOpen = drawKeyboard(px, cmdTop + 24);
     if (kbOpen) chips = [];
-    else listTop += 26; // клавиатура скрыта настройкой — список чуть ниже заметки
+    else listTop = cmdTop + 32; // заметка «подсказка скрыта» — список ниже неё
   }
   if (!kbOpen) {
     kbRect = null;
-    // чипы подстраиваются под свободное место: 1 колонка → 2 колонки → ниже → без подсказок
+    // карточки обязаны уместиться в свою зону (layout): перебираем варианты
+    // колонки/плотности по убыванию комфортности, пока не влезут
     const avail = Math.max(46, CHIPS_BOTTOM - listTop);
-    let cols = 1;
-    if (list.length > 1 && list.length * 62 > avail) cols = 2;
-    const cw = cols === 2 ? (pw - 12) / 2 : pw;
-    const rows = Math.max(1, Math.ceil(list.length / cols));
-    let stride = 62, chH = 54;
-    if (rows * 62 > avail) { stride = 46; chH = 40; }
-    if (rows * 46 > avail) { stride = 34; chH = 30; }
-    const two = cols === 2;
+    const FITS = [
+      { cols: 1, stride: 62, chH: 54 },
+      { cols: 2, stride: 62, chH: 54 },
+      { cols: 3, stride: 62, chH: 54 },
+      { cols: 2, stride: 46, chH: 40 },
+      { cols: 3, stride: 46, chH: 40 },
+      { cols: 3, stride: 34, chH: 30 },
+      { cols: 4, stride: 34, chH: 30 },
+    ];
+    let fit = FITS[FITS.length - 1];
+    for (const f of FITS) {
+      if (Math.ceil(list.length / f.cols) * f.stride <= avail) { fit = f; break; }
+    }
+    const cols = fit.cols, stride = fit.stride, chH = fit.chH;
+    const cw = (pw - 12 * (cols - 1)) / cols;
     const S = chH >= 54
-      ? { ic: two ? 19 : 22, cf: two ? 17 : 20, hf: two ? 11 : 13, cy: 27, hy: 46, tx: two ? 40 : 50, iox: two ? 12 : 14 }
+      ? { ic: cols === 1 ? 22 : 19, cf: cols === 1 ? 20 : 17, hf: cols === 1 ? 13 : 11, cy: 27, hy: 46, tx: cols === 1 ? 50 : 40, iox: cols === 1 ? 14 : 12 }
       : chH >= 40
         ? { ic: 16, cf: 16, hf: 11, cy: 21, hy: 33, tx: 32, iox: 10 }
-        : { ic: 14, cf: 15, hf: 0, cy: 20, hy: 0, tx: 28, iox: 10 };
+        : cols >= 4
+          ? { ic: 12, cf: 12, hf: 0, cy: 20, hy: 0, tx: 24, iox: 7 }
+          : { ic: 14, cf: 15, hf: 0, cy: 20, hy: 0, tx: 28, iox: 10 };
     chips = [];
     if (list.length === 0) {
-      ctx.fillStyle = '#26a69a'; rr(px, listTop, pw, 46, 10);
+      ctx.fillStyle = '#26a69a'; rr(E.commands.x, listTop, pw, 46, 10);
       ctx.fillStyle = '#eaffea'; ctx.font = '18px Segoe UI';
       let wait = selected ? 'ждём — команды появятся, когда ячейка освободится' : 'кликни по ячейке → по команде — появится клавиатура';
       if (order && !selected) wait = 'кликни клетку из заказа и напечатай «письмо»';
@@ -3075,8 +3125,8 @@ function drawPanel() {
       ctx.fillText(wait, px + 12, listTop + 30);
     }
     list.forEach((c, i) => {
-      const col = two ? i % 2 : 0, row = Math.floor(i / cols);
-      const x = px + col * (cw + 12), y = listTop + row * stride;
+      const col = i % cols, row = Math.floor(i / cols);
+      const x = E.commands.x + col * (cw + 12), y = listTop + row * stride;
       chips.push({ x, y, w: cw, h: chH, cmd: c.cmd });
       ctx.fillStyle = '#245c3d'; rr(x, y, cw, chH, chH >= 54 ? 10 : 8);
       ctx.strokeStyle = '#3d8a5f'; ctx.lineWidth = 2; ctx.stroke();
@@ -3096,21 +3146,21 @@ function drawPanel() {
 
     // журнал закреплён над статистикой — не наползает на команды и поле ввода
     ctx.fillStyle = '#9dbfa5'; ctx.font = 'bold 15px Segoe UI';
-    ctx.fillText('ЖУРНАЛ:', px, 486);
-    ctx.fillStyle = '#0e2418'; rr(px, 496, pw, 68, 10);
+    ctx.fillText('ЖУРНАЛ:', E.journal.x, E.journal.labelY);
+    ctx.fillStyle = '#0e2418'; rr(E.journal.x, E.journal.y, pw, E.journal.h, 10);
     ctx.font = '15px Segoe UI';
     logArr.slice(0, 3).forEach((e, i) => {
       ctx.fillStyle = e.kind === 'err' ? '#ff8a80' : e.kind === 'warn' ? '#ffe082' : '#a5d6a7';
-      ctx.fillText(e.text, px + 12, 518 + i * 21);
+      ctx.fillText(e.text, E.journal.x + 12, E.journal.y + 22 + i * 21);
     });
     ctx.fillStyle = '#9dbfa5'; ctx.font = '14px Segoe UI';
-    ctx.fillText('Команд: ' + stats.typed + ' · точность: ' + acc + '% · рабочих: ' + workers.filter(w => w.phase !== 'leave').length, px, 586);
+    ctx.fillText('Команд: ' + stats.typed + ' · точность: ' + acc + '% · рабочих: ' + workers.filter(w => w.phase !== 'leave').length, E.stats.x, E.stats.y);
   }
   ctx.fillStyle = '#ffe066'; ctx.font = 'bold 16px Segoe UI';
   let sel = '—';
   if (selected && selected2) sel = cellName(selected.col, selected.row) + ' → ' + cellName(selected2.col, selected2.row);
   else if (selected) sel = cellName(selected.col, selected.row);
-  ctx.fillText('Ячейка: ' + sel + ' · Введи команду и нажми Enter:', px, 608);
+  ctx.fillText('Ячейка: ' + sel + ' · Введи команду и нажми Enter:', E.cell_prompt.x, E.cell_prompt.y);
 }
 
 function drawWin() {
@@ -3508,9 +3558,20 @@ window.__test = {
   demoInfo: () => demo ? { on: demo.on, level: demo.i + 1, step: demo.step, phase: demo.phase, speed: demo.speed, msg: demo.msg } : null,
 };
 
-applyLevel(0);
-state = 'menu';
-requestAnimationFrame(loop);
+// Старт: сначала пробуем подхватить layout.json (раскладка из верстака
+// layout.html), затем запускаем игру. Без файла (file://) — дефолтная раскладка.
+(async function boot() {
+  try {
+    const r = await fetch('layout.json', { cache: 'no-store' });
+    if (r.ok) applyLayout(await r.json());
+  } catch (e) { /* нет файла или file:// — работаем на дефолтах */ }
+  // ?level=N применяется своим таймером — не перекрываем его меню
+  if (!/[?&]level=\d+/.test(location.search)) {
+    applyLevel(0);
+    state = 'menu';
+  }
+  requestAnimationFrame(loop);
+})();
 
 // ?level=N — сразу открыть уровень N (1–30), удобно для тестирования
 (function () {
