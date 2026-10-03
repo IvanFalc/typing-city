@@ -3519,14 +3519,10 @@ canvas.addEventListener('click', e => {
       input.focus();
       return;
     }
-    if (LVL.two) {
-      if (!selected || (selected.col === c && selected.row === r)) selected = { col: c, row: r };
-      else if (!selected2) selected2 = { col: c, row: r };
-      else { selected = { col: c, row: r }; selected2 = null; }
-    } else {
-      selected = { col: c, row: r };
-      selected2 = null;
-    }
+    // выделение всегда одно: второй клик просто переносит его
+    // (на дорожных уровнях конец дороги указывают ПОСЛЕ команды «дорога»)
+    selected = { col: c, row: r };
+    selected2 = null;
     beep(500, 0.05, 'triangle', 0.07);
     input.focus();
   }
