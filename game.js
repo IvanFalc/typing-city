@@ -672,7 +672,11 @@ function applyLevel(i) {
   // Скиллы: команды пройденных уровней остаются у игрока навсегда —
   // «открыл сажать лес» значит можно сажать везде дальше.
   const extra = [];
-  const doneSet = skillDone || SAVE.done;
+  // В dev-режиме уровни открывают вразнобой — навыки выдаём так, будто
+  // все предыдущие пройдены: иначе на уровне нечем добыть ресурс.
+  const doneSet = skillDone || (DEV()
+    ? LEVELS.reduce((o, _v, j) => { if (j < i) o[j] = true; return o; }, {})
+    : SAVE.done);
   for (const m in doneSet) {
     const src = LEVELS[m];
     if (!src || +m === i) continue;
