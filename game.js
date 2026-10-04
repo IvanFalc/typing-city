@@ -102,8 +102,10 @@ const LEVELS = [
       { text: 'Нажми на карточку «лес» — появится клавиатура-подсказка', chip: 'лес', check: () => kbTarget === 'лес' || input.value.trim().toLowerCase() === 'лес' },
       { text: 'Набери на клавиатуре слово: лес', input: true, check: () => input.value.trim().toLowerCase() === 'лес' },
       { text: 'Нажми Enter — лес посадится!', input: true, check: () => !!objs['а1'] },
-      { text: 'Дерево выросло! Кликни его → «рубить дрова»', cell: [0, 0], check: () => (resources['дрова'] || 0) > 0 },
-      { text: 'Брёвна: посади ещё «лес» → «пилить бревна». Цель: 40 и 10', input: true, check: () => (resources['бревна'] || 0) > 0 },
+      { text: 'Дерево выросло! Нажми карточку «рубить дрова» — клавиатура откроется сама', cell: [0, 0], chip: 'рубить дрова', input: true, check: () => (resources['дрова'] || 0) > 0 },
+      { text: 'Теперь так же, как рубил дрова, напили брёвен', banner: true, check: () => workers.some(w => w.act && w.act.cmd === 'пилить бревна') },
+      { hidden: true, check: () => LVL.goal.every(g => goalVal(g) >= g.n) },
+      { text: 'Дрова и брёвна собраны! Осталось выкорчевать все пни', banner: true, check: () => countKind('stump') === 0 },
     ],
     goal: [ { res: 'дрова', n: 40, gen: 'дров' }, { res: 'бревна', n: 10, gen: 'брёвен' } ],
     verbs: [
@@ -743,7 +745,8 @@ function tutRect(step) {
   if (step.input) {
     // клавиатура открыта — подсвечиваем её вместе со строкой ввода
     if (kbTarget && kbRect) return { x: 730, y: kbRect.y, w: 530, h: 670 - kbRect.y };
-    return { x: 730, y: 616, w: 496, h: 54 };
+    // клетка в шаге важнее строки ввода: пока клавиатура закрыта, ведём игрока к клетке
+    if (!step.cell) return { x: 730, y: 616, w: 496, h: 54 };
   }
   if (step.cell) return { x: cellX(step.cell[0]), y: cellY(step.cell[1]), w: CELL, h: CELL };
   return { x: 590, y: 340, w: 100, h: 100 };
@@ -778,25 +781,36 @@ function drawTutorial() {
   if (!tut) return;
   const step = tut[tutIdx];
   if (!step) return;
-  const r = tutRect(step);
-  // затемняем всё, кроме области шага
-  ctx.fillStyle = 'rgba(4,12,8,0.62)';
-  ctx.fillRect(0, 0, W, r.y);
-  ctx.fillRect(0, r.y + r.h, W, H - r.y - r.h);
-  ctx.fillRect(0, r.y, r.x, r.h);
-  ctx.fillRect(r.x + r.w, r.y, W - r.x - r.w, r.h);
-  // пульсирующая рамка области
-  ctx.strokeStyle = 'rgba(255,224,102,' + (0.6 + 0.4 * Math.sin(now * 5)) + ')';
-  ctx.lineWidth = 4;
-  ctx.strokeRect(r.x - 4, r.y - 4, r.w + 8, r.h + 8);
+  if (step.hidden) return; // шаг-пауза: игрок просто играет, ничего не подсвечиваем
+  let r = null;
+  if (!step.banner) {
+    r = tutRect(step);
+    // затемняем всё, кроме области шага
+    ctx.fillStyle = 'rgba(4,12,8,0.62)';
+    ctx.fillRect(0, 0, W, r.y);
+    ctx.fillRect(0, r.y + r.h, W, H - r.y - r.h);
+    ctx.fillRect(0, r.y, r.x, r.h);
+    ctx.fillRect(r.x + r.w, r.y, W - r.x - r.w, r.h);
+    // пульсирующая рамка области
+    ctx.strokeStyle = 'rgba(255,224,102,' + (0.6 + 0.4 * Math.sin(now * 5)) + ')';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(r.x - 4, r.y - 4, r.w + 8, r.h + 8);
+  }
   // пузырь с заданием
   ctx.font = 'bold 21px Segoe UI';
   const tw = ctx.measureText(step.text).width;
   const bw = tw + 36, bh = 56;
-  let bx = Math.min(W - bw - 16, Math.max(16, r.x + r.w / 2 - bw / 2));
-  let by = r.y - bh - 26 < 10 ? r.y + r.h + 22 : r.y - bh - 22;
-  // в демо слева сверху висит баннер — подсказку прячем под клетку, а не под баннер
-  if (demo && demo.on && bx < 556 && by < 122) by = r.y + r.h + 22;
+  let bx, by;
+  if (step.banner) {
+    // без затемнения: механика уже изучена, поле свободно для игры
+    bx = Math.max(16, Math.min(24, 714 - bw)); by = 8;
+    if (demo && demo.on) by = 132; // под баннером демо
+  } else {
+    bx = Math.min(W - bw - 16, Math.max(16, r.x + r.w / 2 - bw / 2));
+    by = r.y - bh - 26 < 10 ? r.y + r.h + 22 : r.y - bh - 22;
+    // в демо слева сверху висит баннер — подсказку прячем под клетку, а не под баннер
+    if (demo && demo.on && bx < 556 && by < 122) by = r.y + r.h + 22;
+  }
   ctx.fillStyle = '#ffe066'; rr(bx, by, bw, bh, 14);
   ctx.fillStyle = '#17382a'; ctx.textAlign = 'center';
   ctx.fillText(step.text, bx + bw / 2, by + 35);
@@ -865,17 +879,30 @@ let telemLen = 0;
 let streak = 0, hintUses = 0; // серия без ошибок / открытий подсказки-клавиатуры
 let bubbles = [], bubAcc = 0; // бонус-пузыри со словами (занятость в паузах)
 const BUBBLE_LIFE = 9; // секунд живёт пузырь; шкала внутри показывает остаток
-const BUBBLE_WORDS = ['мир', 'дом', 'кот', 'сыр', 'чай', 'мак', 'пар', 'год', 'юла', 'ёжик', 'ива', 'хлеб', 'звук', 'флаг', 'щавель', 'экран', 'юг', 'яма', 'цифра', 'мышь', 'ольха', 'ствол'];
+const BUBBLE_WORDS = ['мир', 'дом', 'кот', 'сыр', 'чай', 'мак', 'пар', 'год', 'юла', 'ёжик', 'ива', 'хлеб', 'звук', 'флаг', 'щавель', 'экран', 'юг', 'яма', 'цифра', 'мышь', 'ольха', 'ствол', 'рот', 'сор', 'вол', 'крот', 'торт', 'винт', 'бант', 'парта', 'плита', 'старт'];
 function weakLetters() {
   const arr = Object.keys(SAVE.keys).map(k => [k, SAVE.keys[k]]);
   arr.sort((a, b) => b[1] - a[1]);
   return arr.slice(0, 3).map(a => a[0]);
 }
+// буквы всех команд уровня: пузыри собираются только из них,
+// иначе ребёнок ищет на настоящей клавиатуре клавиши, которых не знал
+function commandLetters() {
+  const set = new Set();
+  for (const v of (LVL.verbs || [])) for (const ch of v.cmd.replace(/ /g, '')) set.add(ch);
+  return set;
+}
 function pickBubble() {
+  const cmds = commandLetters();
+  // слово, совпадающее с командой уровня, игра выполнит как команду — пузырь не лопнет
+  const forbidden = new Set((LVL.verbs || []).map(v => v.cmd));
+  const fits = BUBBLE_WORDS.filter(w => !forbidden.has(w) && [...w].every(ch => cmds.has(ch)));
+  const noCmd = BUBBLE_WORDS.filter(w => !forbidden.has(w));
+  const pool = fits.length ? fits : (noCmd.length ? noCmd : BUBBLE_WORDS);
   const weak = weakLetters();
-  const good = BUBBLE_WORDS.filter(w => weak.some(l => w.includes(l)));
-  const pool = good.length ? good : BUBBLE_WORDS;
-  return pool[Math.floor(Math.random() * pool.length)];
+  const good = pool.filter(w => weak.some(l => w.includes(l)));
+  const use = good.length ? good : pool;
+  return use[Math.floor(Math.random() * use.length)];
 }
 function spawnBubble() {
   if (bubbles.length >= 2) return;
@@ -1013,6 +1040,9 @@ function winLevel() {
   const stars = starForecast().filter(Boolean).length;
   lastWinStars = stars;
   if (demo && demo.on) return; // ДЕМО: сейв и статистику не трогаем
+  // победа может прийти раньше финального шага обучения (tutTick не тикает в win) —
+  // помечаем обучение пройденным, чтобы при перепрохождении не показывать заново
+  if (tut) { tut = null; SAVE.tutDone = SAVE.tutDone || {}; SAVE.tutDone[levelIdx] = true; persistSave(); }
   const wasDone = Object.assign({}, SAVE.done);
   const prev = SAVE.stars[levelIdx] || 0;
   if (stars > prev) SAVE.stars[levelIdx] = stars;
@@ -2726,7 +2756,7 @@ function drawKeyboard(px, top) {
     let fill = '#1d3226', txt = '#789b7f', border = null, bw = 0;
     if (ch === ' ' ? t.includes(' ') : letters.has(ch)) { fill = '#2e5c40'; txt = '#eaffea'; }
     if (ch === wrong) { border = '#e57373'; bw = 3; fill = '#4e2323'; }
-    if (ch === next && !complete) {
+    if (ch === '\n' ? complete : (ch === next && !complete)) {
       fill = '#ffe066'; txt = '#17382a';
       border = 'rgba(255,255,255,' + (0.6 + 0.4 * Math.sin(now * 6)) + ')'; bw = 3;
     }
@@ -2746,6 +2776,9 @@ function drawKeyboard(px, top) {
   });
   const sw = 240, sx = px + (LAYOUT.panel.width - sw) / 2, sy = top + 12 + 4 * (KS + GAP);
   drawKey(' ', sx, sy, sw, KS - 4, 'пробел');
+  // Enter — как на настоящей клавиатуре справа от пробела: горит, когда слово набрано
+  const ew = 120, ex = px + LAYOUT.panel.width - ew;
+  drawKey('\n', ex, sy, ew, KS - 4, 'Enter');
   const nextLabel = next === ' ' ? 'пробел' : next;
   ctx.textAlign = 'left'; ctx.font = 'bold 15px Segoe UI';
   if (complete) { ctx.fillStyle = '#7ee787'; ctx.fillText('✅ Верно! Нажимай Enter', px, sy + KS + 26); }
